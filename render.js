@@ -32,10 +32,20 @@ function toDataUri(filePathOrUrl) {
 * @param {string} outputPath - where to save the PNG, e.g. "./output/slide1.png"
 */
 async function renderSlide(data, outputPath) {
-  const browser = await puppeteer.launch({
-    executablePath: process.env.CHROME_BIN || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"], // needed on GitHub Actions runners
-  });
+  const puppeteerOpts = {
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+  };
+
+  const winPath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+  if (process.env.CHROME_BIN) {
+      puppeteerOpts.executablePath = process.env.CHROME_BIN;
+  } else if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      puppeteerOpts.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  } else if (process.platform === 'win32' && fs.existsSync(winPath)) {
+      puppeteerOpts.executablePath = winPath;
+  }
+
+  const browser = await puppeteer.launch(puppeteerOpts);
   const page = await browser.newPage();
   await page.setViewport({ width: 1080, height: 1440 });
 
