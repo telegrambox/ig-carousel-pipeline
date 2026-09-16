@@ -1,0 +1,40 @@
+name: Generate and Post Carousel
+
+on:
+  schedule:
+    - cron: "0 9 * * *" # runs daily at 9:00 UTC — edit as you like
+  workflow_dispatch: # lets you also trigger it manually from GitHub UI
+
+jobs:
+  build-and-post:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # needed so the workflow can commit generated images back to the repo
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          
+      - name: Install Python dependencies for AI background removal
+        run: pip install rembg onnxruntime Pillow
+          
+      - name: Install Node dependencies
+        run: npm install
+        
+      - name: Run Pipeline (Source -> Select -> Generate -> Render -> Commit -> Post)
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          REPO_RAW_BASE: https://raw.githubusercontent.com/${{ github.repository }}/main/output
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+        run: node pipeline.js

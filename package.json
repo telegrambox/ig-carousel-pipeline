@@ -1,0 +1,19 @@
+{
+  "name": "ig-carousel-pipeline",
+  "version": "1.0.0",
+  "description": "Free, automated Instagram carousel generator + poster Web UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "cli": "node pipeline.js",
+    "render": "node render.js",
+    "post": "node postToInstagram.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.1",
+    "express": "^5.2.1",
+    "node-fetch": "^2.7.0",
+    "puppeteer": "^22.0.0",
+    "rss-parser": "^3.13.0"
+  }
+}
