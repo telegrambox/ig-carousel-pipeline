@@ -5,6 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "build": "puppeteer browsers install chrome",
+    "postinstall": "puppeteer browsers install chrome",
     "cli": "node pipeline.js",
     "render": "node render.js",
     "post": "node postToInstagram.js"

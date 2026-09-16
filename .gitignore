@@ -3,3 +3,4 @@ output/
 .tempmediaStorage/
 .env
 .DS_Store
+.cache/

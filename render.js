@@ -26,6 +26,54 @@ function toDataUri(filePathOrUrl) {
   return filePathOrUrl;
 }
 
+function findChromeExecutable() {
+  if (process.env.CHROME_BIN && fs.existsSync(process.env.CHROME_BIN)) {
+    return process.env.CHROME_BIN;
+  }
+  if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+  const winPath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+  if (process.platform === 'win32' && fs.existsSync(winPath)) {
+    return winPath;
+  }
+  
+  try {
+    const defaultPath = puppeteer.executablePath();
+    if (defaultPath && fs.existsSync(defaultPath)) {
+      return defaultPath;
+    }
+  } catch (e) {}
+
+  const localCache = path.join(__dirname, '.cache', 'puppeteer');
+  if (fs.existsSync(localCache)) {
+    function walk(dir) {
+      let results = [];
+      const list = fs.readdirSync(dir);
+      for (const file of list) {
+        const full = path.join(dir, file);
+        const stat = fs.statSync(full);
+        if (stat.isDirectory()) {
+          results = results.concat(walk(full));
+        } else {
+          results.push(full);
+        }
+      }
+      return results;
+    }
+    const allFiles = walk(localCache);
+    const chrome = allFiles.find(f => 
+      f.endsWith('/chrome') || 
+      f.endsWith('\\chrome') || 
+      f.endsWith('chrome.exe') || 
+      f.endsWith('/chromium') || 
+      f.endsWith('\\chromium')
+    );
+    if (chrome) return chrome;
+  }
+  return undefined;
+}
+
 /**
 * Renders one slide of data into a PNG file.
 * @param {object} data - see slideTemplate.js for shape
@@ -33,16 +81,21 @@ function toDataUri(filePathOrUrl) {
 */
 async function renderSlide(data, outputPath) {
   const puppeteerOpts = {
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--no-zygote",
+      "--single-process"
+    ],
   };
 
-  const winPath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-  if (process.env.CHROME_BIN) {
-      puppeteerOpts.executablePath = process.env.CHROME_BIN;
-  } else if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-      puppeteerOpts.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-  } else if (process.platform === 'win32' && fs.existsSync(winPath)) {
-      puppeteerOpts.executablePath = winPath;
+  const detectedExec = findChromeExecutable();
+  if (detectedExec) {
+    console.log("Using Chrome executable at:", detectedExec);
+    puppeteerOpts.executablePath = detectedExec;
   }
 
   const browser = await puppeteer.launch(puppeteerOpts);
