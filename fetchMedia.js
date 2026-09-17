@@ -3,6 +3,13 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 
+// Set to ensure no two slides ever use the exact same image
+const usedImageUrls = new Set();
+
+function resetUsedMedia() {
+    usedImageUrls.clear();
+}
+
 /**
  * Fetch a person's portrait from Wikipedia
  */
@@ -12,7 +19,7 @@ async function fetchWikipediaImage(personName, savePath) {
         console.log(`Searching Wikipedia for portrait of '${personName}'...`);
         const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(personName)}&gsrlimit=1&prop=pageimages&pithumbsize=1200&format=json`;
         const res = await fetch(url, {
-            headers: { 'User-Agent': '1affairs-pipeline/1.0 (contact@1affairs.com)' }
+            headers: { 'User-Agent': '1affairs-pipeline/2.0 (contact@1affairs.com)' }
         });
         const data = await res.json();
         if (!data.query || !data.query.pages) {
@@ -27,9 +34,9 @@ async function fetchWikipediaImage(personName, savePath) {
             return null;
         }
 
-        console.log(`Found Wikipedia image URL: ${imageUrl}`);
+        console.log(`Found Wikipedia portrait URL: ${imageUrl}`);
         const imgRes = await fetch(imageUrl, {
-            headers: { 'User-Agent': '1affairs-pipeline/1.0 (contact@1affairs.com)' }
+            headers: { 'User-Agent': '1affairs-pipeline/2.0 (contact@1affairs.com)' }
         });
         const buffer = await imgRes.buffer();
         fs.writeFileSync(savePath, buffer);
@@ -42,24 +49,97 @@ async function fetchWikipediaImage(personName, savePath) {
 }
 
 /**
- * Download a genuine, authentic photo from Wikimedia Commons (real news/topic photography)
+ * Search Wikipedia for an article matching the topic and return its authentic lead photo
+ */
+async function fetchWikipediaArticlePhoto(keyword, savePath) {
+    try {
+        console.log(`Searching Wikipedia articles for authentic photo of '${keyword}'...`);
+        const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(keyword)}&srlimit=3&format=json`;
+        const searchRes = await fetch(searchUrl, {
+            headers: { 'User-Agent': '1affairs-pipeline/2.0 (contact@1affairs.com)' }
+        });
+        const searchData = await searchRes.json();
+        
+        if (searchData.query && searchData.query.search) {
+            for (const item of searchData.query.search) {
+                const title = item.title;
+                const pageUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&pithumbsize=1200&format=json`;
+                const pageRes = await fetch(pageUrl, {
+                    headers: { 'User-Agent': '1affairs-pipeline/2.0 (contact@1affairs.com)' }
+                });
+                const pageData = await pageRes.json();
+                const pages = Object.values(pageData.query?.pages || {});
+                const thumb = pages[0]?.thumbnail?.source;
+                const lower = (thumb || "").toLowerCase();
+                const titleLower = (title || "").toLowerCase();
+                
+                if (
+                    thumb &&
+                    !usedImageUrls.has(thumb) &&
+                    !lower.includes('.svg') &&
+                    !lower.includes('logo') &&
+                    !lower.includes('map') &&
+                    !titleLower.includes('logo')
+                ) {
+                    console.log(`Found authentic Wikipedia article photo from '${title}': ${thumb}`);
+                    usedImageUrls.add(thumb);
+                    const imgRes = await fetch(thumb, {
+                        headers: { 'User-Agent': '1affairs-pipeline/2.0 (contact@1affairs.com)' }
+                    });
+                    const buffer = await imgRes.buffer();
+                    fs.writeFileSync(savePath, buffer);
+                    console.log(`Saved Wikipedia article photo to ${savePath}`);
+                    return savePath;
+                }
+            }
+        }
+    } catch (err) {
+        console.warn(`Wikipedia article search for '${keyword}' failed:`, err.message);
+    }
+    return null;
+}
+
+/**
+ * Search Wikimedia Commons with strict filtering against documents, book scans, and diagrams
  */
 async function fetchWikimediaImage(keyword, savePath) {
     try {
         console.log(`Searching Wikimedia Commons for authentic photo of '${keyword}'...`);
-        const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(keyword)}&gsrlimit=5&gsrnamespace=6&prop=imageinfo&iiprop=url&iiurlwidth=1200&format=json`;
+        const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(keyword)}&gsrlimit=12&gsrnamespace=6&prop=imageinfo&iiprop=url&iiurlwidth=1200&format=json`;
         const res = await fetch(url, {
-            headers: { 'User-Agent': '1affairs-media-pipeline/1.0 (contact@1affairs.com)' }
+            headers: { 'User-Agent': '1affairs-media-pipeline/2.0 (contact@1affairs.com)' }
         });
         const data = await res.json();
         if (data.query && data.query.pages) {
             const pages = Object.values(data.query.pages);
             for (const page of pages) {
                 const imgUrl = page?.imageinfo?.[0]?.thumburl || page?.imageinfo?.[0]?.url;
-                if (imgUrl && !imgUrl.toLowerCase().endsWith('.svg') && !imgUrl.toLowerCase().endsWith('.tif') && !imgUrl.toLowerCase().endsWith('.djvu')) {
-                    console.log(`Found authentic photo on Wikimedia: ${imgUrl}`);
+                const lower = (imgUrl || "").toLowerCase();
+                const title = (page?.title || "").toLowerCase();
+
+                const isBad =
+                    !imgUrl ||
+                    usedImageUrls.has(imgUrl) ||
+                    lower.endsWith('.svg') ||
+                    lower.endsWith('.tif') ||
+                    lower.endsWith('.djvu') ||
+                    lower.endsWith('.gif') ||
+                    lower.includes('.pdf') ||
+                    lower.includes('page1-') ||
+                    lower.includes('catalog') ||
+                    lower.includes('document') ||
+                    lower.includes('bulletin') ||
+                    lower.includes('ia_') ||
+                    title.includes('pdf') ||
+                    title.includes('bulletin') ||
+                    title.includes('catalog') ||
+                    title.includes('document');
+
+                if (!isBad) {
+                    console.log(`Found genuine authentic photo on Wikimedia: ${imgUrl}`);
+                    usedImageUrls.add(imgUrl);
                     const imgRes = await fetch(imgUrl, {
-                        headers: { 'User-Agent': '1affairs-media-pipeline/1.0 (contact@1affairs.com)' }
+                        headers: { 'User-Agent': '1affairs-media-pipeline/2.0 (contact@1affairs.com)' }
                     });
                     const buffer = await imgRes.buffer();
                     fs.writeFileSync(savePath, buffer);
@@ -75,20 +155,33 @@ async function fetchWikimediaImage(keyword, savePath) {
 }
 
 /**
- * Download a generic topic photo (tries Wikimedia first, falls back to LoremFlickr)
+ * Intelligent Multi-Tier Topic Image Fetcher:
+ * 1. Tries Wikipedia Topic Article lead photo (authentic real-world photo of the topic/event)
+ * 2. Tries filtered Wikimedia Commons
+ * 3. Falls back to curated photography with unique seed/lock
  */
-async function fetchTopicImage(keyword, savePath) {
-    const wikiResult = await fetchWikimediaImage(keyword, savePath);
-    if (wikiResult) return wikiResult;
+async function fetchTopicImage(keyword, savePath, seed = 1) {
+    // 1. Try Wikipedia article authentic photo
+    const wikiArticlePhoto = await fetchWikipediaArticlePhoto(keyword, savePath);
+    if (wikiArticlePhoto) return wikiArticlePhoto;
 
+    // 2. Try Wikimedia Commons genuine photo
+    const wikiCommonsPhoto = await fetchWikimediaImage(keyword, savePath);
+    if (wikiCommonsPhoto) return wikiCommonsPhoto;
+
+    // 3. Fall back to curated photo engine with unique lock
     try {
-        const cleanKeyword = encodeURIComponent(keyword.trim().replace(/\s+/g, ','));
-        const url = `https://loremflickr.com/1080/1080/${cleanKeyword}`;
-        console.log(`Falling back to LoremFlickr for '${keyword}'...`);
-        const res = await fetch(url);
+        const words = keyword.trim().split(/\s+/).filter(w => w.length > 2);
+        const cleanKeyword = encodeURIComponent(words.slice(0, 2).join(',') || "business,news");
+        const lockSeed = Math.floor(Math.random() * 1000) + (seed * 43);
+        const url = `https://loremflickr.com/1080/1080/${cleanKeyword}?lock=${lockSeed}`;
+        console.log(`Fetching curated photo for '${keyword}' with tags '${cleanKeyword}' (lock ${lockSeed})...`);
+        const res = await fetch(url, {
+            headers: { 'User-Agent': '1affairs-media-pipeline/2.0' }
+        });
         const buffer = await res.buffer();
         fs.writeFileSync(savePath, buffer);
-        console.log(`Saved topic image to ${savePath}`);
+        console.log(`Saved curated topic image to ${savePath}`);
         return savePath;
     } catch (err) {
         console.error(`Error fetching topic image for ${keyword}:`, err.message);
@@ -117,5 +210,8 @@ function removeBackground(inputPath, outputPath) {
 module.exports = {
     fetchWikipediaImage,
     fetchTopicImage,
-    removeBackground
+    fetchWikimediaImage,
+    fetchWikipediaArticlePhoto,
+    removeBackground,
+    resetUsedMedia
 };

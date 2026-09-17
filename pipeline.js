@@ -4,7 +4,7 @@ const { getTrendingStats } = require("./source");
 const { selectBestStory, markAsUsed } = require("./select");
 const { generateCarouselCopy } = require("./generateCopy");
 const { renderCarousel } = require("./render");
-const { fetchWikipediaImage, fetchTopicImage, removeBackground } = require("./fetchMedia");
+const { fetchWikipediaImage, fetchTopicImage, removeBackground, resetUsedMedia } = require("./fetchMedia");
 
 async function run(options = {}) {
     const {
@@ -15,6 +15,8 @@ async function run(options = {}) {
         slideCount = 3,
         onProgress = console.log
     } = options;
+
+    resetUsedMedia();
 
     let bestStory;
 
@@ -64,24 +66,17 @@ async function run(options = {}) {
         fs.writeFileSync(path.join(outputDir, "caption.txt"), copyData.caption);
     }
 
-    // A. Fetch background scene
-    const bgFile = path.join(outputDir, "bg.jpg");
-    const bgKeyword = copyData.bgKeyword || "finance boardroom";
-    onProgress(`Fetching background image for keyword: ${bgKeyword}...`);
-    const bgDownloaded = await fetchTopicImage(bgKeyword, bgFile);
-    const bgUrl = bgDownloaded ? `file:///${bgFile.replace(/\\/g, '/')}` : "";
-
-    // B. Fetch secondary circular badge image
+    // A. Fetch secondary circular badge image (for Slide 1)
     const circleFile = path.join(outputDir, "circle.jpg");
     const circleKeyword = copyData.circleImageKeyword || "stock chart";
     onProgress(`Fetching secondary image for keyword: ${circleKeyword}...`);
-    const circleDownloaded = await fetchTopicImage(circleKeyword, circleFile);
+    const circleDownloaded = await fetchTopicImage(circleKeyword, circleFile, 99);
     const circleUrl = circleDownloaded ? `file:///${circleFile.replace(/\\/g, '/')}` : "";
 
-    // C. Fetch person portrait & remove background
+    // C. Fetch person portrait & remove background (for Slide 1 Hero)
     let cutoutUrl = "";
     if (copyData.personName && copyData.personName.toLowerCase() !== "none" && copyData.personName.toLowerCase() !== "null") {
-        onProgress(`Fetching Wikipedia portrait for: ${copyData.personName}...`);
+        onProgress(`Fetching authentic portrait for: ${copyData.personName}...`);
         const rawPersonPath = path.join(outputDir, "person_raw.jpg");
         const personDownloaded = await fetchWikipediaImage(copyData.personName, rawPersonPath);
         if (personDownloaded) {
@@ -94,11 +89,22 @@ async function run(options = {}) {
         }
     }
 
-    copyData.slides.forEach((slide, idx) => {
-        slide.bgImagePath = bgUrl;
-        slide.cutoutImagePath = cutoutUrl;
-        slide.circleImagePath = idx === 0 ? circleUrl : "";
-    });
+    // D. Fetch a UNIQUE, distinct background photo for EVERY slide
+    const totalSlides = copyData.slides.length;
+    for (let idx = 0; idx < totalSlides; idx++) {
+        const slide = copyData.slides[idx];
+        const slideKeyword = slide.bgKeyword || copyData.bgKeyword || bestStory.headline;
+        const slideImgPath = path.join(outputDir, `slide_bg_${idx + 1}.jpg`);
+        
+        onProgress(`Fetching context-specific photo for Slide ${idx + 1}/${totalSlides} ('${slideKeyword}')...`);
+        const downloaded = await fetchTopicImage(slideKeyword, slideImgPath, idx + 1);
+        slide.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : "";
+        
+        // Slide 1 has the hero person cutout & circular badge
+        // Subsequent slides use their unique context background without duplicate cutouts
+        slide.cutoutImagePath = (idx === 0) ? cutoutUrl : "";
+        slide.circleImagePath = (idx === 0) ? circleUrl : "";
+    }
 
     onProgress("Rendering slides with Puppeteer...");
     const slidePaths = await renderCarousel(copyData.slides, outputDir);
