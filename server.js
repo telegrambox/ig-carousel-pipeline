@@ -15,7 +15,7 @@ const jobs = new Map();
 const progressEvents = new EventEmitter();
 
 app.post('/api/generate', (req, res) => {
-    const { topicMode, customTopic, category, channelName } = req.body;
+    const { topicMode, customTopic, category, channelName, slideCount } = req.body;
     const jobId = Date.now().toString();
     
     jobs.set(jobId, { status: 'running', logs: [] });
@@ -29,7 +29,7 @@ app.post('/api/generate', (req, res) => {
         progressEvents.emit(`progress-${jobId}`, { type: 'log', message: msg });
     };
 
-    run({ topicMode, customTopic, category, channelName, onProgress })
+    run({ topicMode, customTopic, category, channelName, slideCount, onProgress })
         .then(result => {
             if (result.error) {
                 progressEvents.emit(`progress-${jobId}`, { type: 'error', message: result.error });

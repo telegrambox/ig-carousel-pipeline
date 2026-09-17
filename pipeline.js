@@ -4,7 +4,7 @@ const { getTrendingStats } = require("./source");
 const { selectBestStory, markAsUsed } = require("./select");
 const { generateCarouselCopy } = require("./generateCopy");
 const { renderCarousel } = require("./render");
-const { fetchWikipediaImage, fetchTopicImage, removeBackground } = require("./fetchMedia");
+const { fetchWikipediaImage, fetchTopicImage, removeBackground, resetUsedMedia } = require("./fetchMedia");
 
 async function run(options = {}) {
     const {
@@ -12,8 +12,12 @@ async function run(options = {}) {
         customTopic = '',
         category = 'finance',
         channelName = '1affairs',
+        slideCount = 3,
         onProgress = console.log
     } = options;
+
+    const numSlides = Math.max(3, Math.min(8, parseInt(slideCount) || 3));
+    resetUsedMedia();
 
     let bestStory;
 
@@ -21,18 +25,18 @@ async function run(options = {}) {
         onProgress(`1. Using custom topic: ${customTopic}`);
         bestStory = { 
             headline: customTopic, 
-            description: `A user-provided story about ${customTopic} in the ${category} category.`, 
+            description: `A story about ${customTopic} in the ${category} sector.`, 
             url: "custom-url" 
         };
     } else {
-        onProgress(`1. Fetching trending ${category} stats...`);
+        onProgress(`1. Fetching trending ${category} news...`);
         const articles = await getTrendingStats(category);
         if (!articles || articles.length === 0) {
             onProgress("No articles found. Exiting.");
             return { error: "No articles found." };
         }
 
-        onProgress(`Fetched ${articles.length} articles. Selecting the best one...`);
+        onProgress(`Fetched ${articles.length} articles. Selecting the top story...`);
         bestStory = selectBestStory(articles);
         if (!bestStory) {
             onProgress("No unused stories available. Exiting.");
@@ -40,18 +44,18 @@ async function run(options = {}) {
         }
     }
     
-    onProgress(`Selected story: ${bestStory.headline}`);
-    onProgress(`2. Generating carousel copy with Claude for channel: ${channelName}...`);
+    onProgress(`Selected story: "${bestStory.headline}"`);
+    onProgress(`2. Generating dynamic ${numSlides}-slide storytelling copy for ${channelName}...`);
     let copyData;
     try {
-        copyData = await generateCarouselCopy(bestStory, channelName);
-        onProgress("Generated copy successfully.");
+        copyData = await generateCarouselCopy(bestStory, channelName, numSlides);
+        onProgress(`Generated copy for ${copyData.slides.length} slides.`);
     } catch (e) {
         onProgress(`Error generating copy: ${e.message}`);
         return { error: e.message };
     }
 
-    onProgress("3. Preparing assets and rendering carousel images...");
+    onProgress("3. Preparing assets & authentic media for each slide...");
     const outputDir = path.join(__dirname, "output");
     
     if (fs.existsSync(outputDir)) {
@@ -63,24 +67,16 @@ async function run(options = {}) {
         fs.writeFileSync(path.join(outputDir, "caption.txt"), copyData.caption);
     }
 
-    // A. Fetch background scene
-    const bgFile = path.join(outputDir, "bg.jpg");
-    const bgKeyword = copyData.bgKeyword || "finance boardroom";
-    onProgress(`Fetching background image for keyword: ${bgKeyword}...`);
-    const bgDownloaded = await fetchTopicImage(bgKeyword, bgFile);
-    const bgUrl = bgDownloaded ? `file:///${bgFile.replace(/\\/g, '/')}` : "";
-
-    // B. Fetch secondary circular badge image
+    // A. Fetch secondary circular visual badge for Slide 1
     const circleFile = path.join(outputDir, "circle.jpg");
-    const circleKeyword = copyData.circleImageKeyword || "stock chart";
-    onProgress(`Fetching secondary image for keyword: ${circleKeyword}...`);
-    const circleDownloaded = await fetchTopicImage(circleKeyword, circleFile);
+    const circleKeyword = copyData.circleImageKeyword || "chart";
+    const circleDownloaded = await fetchTopicImage(circleKeyword, circleFile, 99);
     const circleUrl = circleDownloaded ? `file:///${circleFile.replace(/\\/g, '/')}` : "";
 
-    // C. Fetch person portrait & remove background
+    // B. Fetch person portrait & cutout if relevant
     let cutoutUrl = "";
     if (copyData.personName && copyData.personName.toLowerCase() !== "none" && copyData.personName.toLowerCase() !== "null") {
-        onProgress(`Fetching Wikipedia portrait for: ${copyData.personName}...`);
+        onProgress(`Fetching authentic portrait for: ${copyData.personName}...`);
         const rawPersonPath = path.join(outputDir, "person_raw.jpg");
         const personDownloaded = await fetchWikipediaImage(copyData.personName, rawPersonPath);
         if (personDownloaded) {
@@ -93,27 +89,43 @@ async function run(options = {}) {
         }
     }
 
-    copyData.slides.forEach((slide, idx) => {
-        slide.bgImagePath = bgUrl;
-        slide.cutoutImagePath = cutoutUrl;
-        slide.circleImagePath = idx === 0 ? circleUrl : "";
-    });
+    // C. Fetch a UNIQUE authentic background scene for EVERY slide
+    const total = copyData.slides.length;
+    for (let i = 0; i < total; i++) {
+        const slide = copyData.slides[i];
+        const slideImgPath = path.join(outputDir, `slide_bg_${i + 1}.jpg`);
+        const query = slide.imageSearchQuery || copyData.bgKeyword || bestStory.headline.slice(0, 30);
+        
+        onProgress(`Fetching distinct photo for Slide ${i + 1}/${total} ('${query}')...`);
+        const downloaded = await fetchTopicImage(query, slideImgPath, i + 1);
+        
+        slide.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : "";
+        slide.slideIndex = i + 1;
+        slide.totalSlides = total;
+        slide.channelName = channelName;
 
-    onProgress("Rendering slides with Puppeteer...");
+        // Slide 1 attaches cutout and circular badge
+        if (i === 0) {
+            slide.cutoutImagePath = cutoutUrl;
+            slide.circleImagePath = circleUrl;
+        }
+    }
+
+    onProgress(`4. Rendering ${total} viral 3:4 slides with Puppeteer...`);
     const slidePaths = await renderCarousel(copyData.slides, outputDir);
-    onProgress(`Rendered ${slidePaths.length} slides.`);
+    onProgress(`Successfully rendered all ${slidePaths.length} slides!`);
 
     if (topicMode !== 'custom') {
-        onProgress("4. Marking story as used...");
+        onProgress("Marking story as used...");
         markAsUsed(bestStory.url);
     }
 
     onProgress("Pipeline completed successfully!");
     
-    // Return the generated data to the caller (e.g. Express API)
     return {
         slides: slidePaths.map(p => path.basename(p)),
-        caption: copyData.caption
+        caption: copyData.caption,
+        slideCount: total
     };
 }
 
