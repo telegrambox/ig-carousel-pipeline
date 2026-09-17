@@ -79,27 +79,6 @@ function findChromeExecutable() {
 * @param {object} data - see slideTemplate.js for shape
 * @param {string} outputPath - where to save the PNG, e.g. "./output/slide1.png"
 */
-async function renderSlideWithBrowser(browser, data, outputPath) {
-  const page = await browser.newPage();
-  try {
-    await page.setViewport({ width: 1080, height: 1440, deviceScaleFactor: 1 });
-
-    const preparedData = {
-      ...data,
-      bgImagePath: toDataUri(data.bgImagePath),
-      cutoutImagePath: toDataUri(data.cutoutImagePath),
-      circleImagePath: toDataUri(data.circleImagePath),
-    };
-
-    const html = buildSlideHTML(preparedData);
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    await page.screenshot({ path: outputPath, type: "png" });
-    console.log(`Rendered: ${outputPath}`);
-  } finally {
-    await page.close();
-  }
-}
-
 async function renderSlide(data, outputPath) {
   const puppeteerOpts = {
     headless: true,
@@ -115,15 +94,27 @@ async function renderSlide(data, outputPath) {
 
   const detectedExec = findChromeExecutable();
   if (detectedExec) {
+    console.log("Using Chrome executable at:", detectedExec);
     puppeteerOpts.executablePath = detectedExec;
   }
 
   const browser = await puppeteer.launch(puppeteerOpts);
-  try {
-    await renderSlideWithBrowser(browser, data, outputPath);
-  } finally {
-    await browser.close();
-  }
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1080, height: 1440 });
+
+  // Convert any local file paths to base64 data URIs
+  const preparedData = {
+    ...data,
+    bgImagePath: toDataUri(data.bgImagePath),
+    cutoutImagePath: toDataUri(data.cutoutImagePath),
+    circleImagePath: toDataUri(data.circleImagePath),
+  };
+
+  const html = buildSlideHTML(preparedData);
+  await page.setContent(html, { waitUntil: "networkidle0" });
+  await page.screenshot({ path: outputPath });
+  await browser.close();
+  console.log(`Rendered: ${outputPath}`);
 }
 
 /**
@@ -133,43 +124,13 @@ async function renderCarousel(slidesData, outputDir) {
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
-
-  const puppeteerOpts = {
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--no-zygote",
-      "--single-process"
-    ],
-  };
-
-  const detectedExec = findChromeExecutable();
-  if (detectedExec) {
-    puppeteerOpts.executablePath = detectedExec;
-  }
-
-  const browser = await puppeteer.launch(puppeteerOpts);
+  
   const paths = [];
-
-  try {
-    const total = slidesData.length;
-    for (let i = 0; i < total; i++) {
-      const outPath = path.join(outputDir, `slide-${i + 1}.png`);
-      const slideItem = {
-        ...slidesData[i],
-        slideIndex: slidesData[i].slideIndex || (i + 1),
-        totalSlides: slidesData[i].totalSlides || total,
-      };
-      await renderSlideWithBrowser(browser, slideItem, outPath);
-      paths.push(outPath);
-    }
-  } finally {
-    await browser.close();
+  for (let i = 0; i < slidesData.length; i++) {
+    const outPath = path.join(outputDir, `slide-${i + 1}.png`);
+    await renderSlide(slidesData[i], outPath);
+    paths.push(outPath);
   }
-
   return paths;
 }
 

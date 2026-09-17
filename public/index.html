@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>1affairs Viral Carousel Studio</title>
+    <title>1affairs Pipeline Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .terminal {
@@ -12,81 +12,62 @@
         }
     </style>
 </head>
-<body class="bg-gray-950 text-white min-h-screen">
+<body class="bg-gray-900 text-white min-h-screen">
     <div class="container mx-auto p-6 max-w-6xl">
-        <header class="mb-8 border-b border-gray-800 pb-5 flex justify-between items-center">
-            <div>
-                <h1 class="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-indigo-300 to-pink-400">
-                    1affairs Carousel Studio
-                </h1>
-                <p class="text-gray-400 text-sm mt-1">High-Impact 3:4 Viral Storytelling News Carousels</p>
-            </div>
-            <div class="text-right">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-900/60 text-purple-300 border border-purple-700/50">
-                    ind.file & Indian Startups Engine v2.0
-                </span>
-            </div>
+        <header class="mb-8 border-b border-gray-700 pb-4">
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">Instagram Carousel Pipeline</h1>
+            <p class="text-gray-400 mt-2">Generate 3:4 Viral News Carousels</p>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             <!-- Controls Sidebar -->
-            <div class="bg-gray-900 border border-gray-800 p-6 rounded-2xl shadow-xl h-fit">
-                <h2 class="text-lg font-bold mb-4 pb-2 border-b border-gray-800 flex items-center justify-between">
-                    <span>Configuration</span>
-                    <span class="text-xs font-normal text-gray-500">Customize Output</span>
-                </h2>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg h-fit">
+                <h2 class="text-xl font-semibold mb-4 border-b border-gray-600 pb-2">Configuration</h2>
                 
-                <form id="pipelineForm" class="space-y-5">
+                <form id="pipelineForm" class="space-y-4">
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Brand / Channel Name</label>
-                        <input type="text" id="channelName" value="1affairs" class="w-full bg-gray-800 border border-gray-700 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition">
-                    </div>
-
-                    <!-- Number of Slides Selector (3 to 8) -->
-                    <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="text-xs font-semibold uppercase tracking-wider text-gray-400">Carousel Length</label>
-                            <span id="slideCountDisplay" class="text-xs font-bold text-purple-400 bg-purple-950 px-2 py-0.5 rounded border border-purple-800">5 Slides</span>
-                        </div>
-                        <input type="range" id="slideCount" min="3" max="8" value="5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500">
-                        <div class="flex justify-between text-[11px] text-gray-500 mt-1">
-                            <span>3 (Concise)</span>
-                            <span>5 (Story)</span>
-                            <span>8 (Deep-Dive)</span>
-                        </div>
+                        <label class="block text-sm font-medium text-gray-300">Channel Name</label>
+                        <input type="text" id="channelName" value="1affairs" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Category (for Auto Mode)</label>
-                        <select id="category" class="w-full bg-gray-800 border border-gray-700 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition">
-                            <option value="finance">Finance & Business</option>
-                            <option value="news">General National News</option>
-                            <option value="tech">Technology & AI</option>
+                        <label class="block text-sm font-medium text-gray-300">Category (if Auto)</label>
+                        <select id="category" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="finance">Finance</option>
+                            <option value="news">General News</option>
+                            <option value="tech">Tech</option>
                         </select>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Topic Selection</label>
-                        <div class="grid grid-cols-2 gap-2">
-                            <label class="flex items-center justify-center gap-2 p-2.5 bg-gray-800 border border-gray-700 rounded-xl cursor-pointer hover:border-purple-500 transition text-sm">
-                                <input type="radio" name="topicMode" value="auto" checked class="text-purple-600 focus:ring-purple-500">
-                                <span>Trending Auto</span>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-medium text-gray-300">Number of Slides</label>
+                            <span id="slideCountVal" class="text-xs font-semibold text-blue-400 bg-gray-700 px-2 py-0.5 rounded">3 Slides</span>
+                        </div>
+                        <input type="range" id="slideCount" min="3" max="8" value="3" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300">Topic Selection</label>
+                        <div class="mt-2 space-y-2">
+                            <label class="flex items-center">
+                                <input type="radio" name="topicMode" value="auto" checked class="text-blue-500 bg-gray-700 border-gray-600 focus:ring-blue-500">
+                                <span class="ml-2 text-sm text-gray-300">Auto (Trending)</span>
                             </label>
-                            <label class="flex items-center justify-center gap-2 p-2.5 bg-gray-800 border border-gray-700 rounded-xl cursor-pointer hover:border-purple-500 transition text-sm">
-                                <input type="radio" name="topicMode" value="custom" class="text-purple-600 focus:ring-purple-500">
-                                <span>Custom Topic</span>
+                            <label class="flex items-center">
+                                <input type="radio" name="topicMode" value="custom" class="text-blue-500 bg-gray-700 border-gray-600 focus:ring-blue-500">
+                                <span class="ml-2 text-sm text-gray-300">Custom Topic</span>
                             </label>
                         </div>
                     </div>
 
                     <div id="customTopicContainer" class="hidden">
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Custom Headline / Story Context</label>
-                        <textarea id="customTopic" rows="3" class="w-full bg-gray-800 border border-gray-700 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition" placeholder="e.g. Government confirms cancellation of JSSC-CGL exam following statewide student protests..."></textarea>
+                        <label class="block text-sm font-medium text-gray-300">Custom Headline / Link</label>
+                        <textarea id="customTopic" rows="3" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Mukesh Ambani launches new AI initiative..."></textarea>
                     </div>
 
-                    <button type="submit" id="runBtn" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg shadow-purple-900/30 flex items-center justify-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                        <span>Generate Carousel</span>
+                    <button type="submit" id="runBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition duration-200 mt-4">
+                        Generate Carousel
                     </button>
                 </form>
             </div>
@@ -94,49 +75,39 @@
             <!-- Main Content Area -->
             <div class="md:col-span-2 space-y-6">
                 <!-- Terminal Output -->
-                <div class="bg-gray-900 border border-gray-800 rounded-2xl shadow-xl overflow-hidden flex flex-col h-64">
-                    <div class="bg-gray-850 px-4 py-3 border-b border-gray-800 flex justify-between items-center bg-gray-900">
-                        <div class="flex items-center gap-2">
-                            <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
-                            <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
-                            <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
-                            <span class="text-xs font-mono text-gray-400 ml-2">studio-engine.log</span>
+                <div class="bg-gray-950 rounded-lg shadow-lg border border-gray-700 overflow-hidden flex flex-col h-64">
+                    <div class="bg-gray-800 px-4 py-2 border-b border-gray-700 flex justify-between items-center">
+                        <span class="text-xs font-mono text-gray-400">pipeline.log</span>
+                        <div class="flex space-x-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
                         </div>
-                        <span class="text-[11px] text-gray-500 font-mono">3:4 Canvas Ready</span>
                     </div>
-                    <div id="terminal" class="terminal p-4 text-xs text-green-400 overflow-y-auto flex-1 leading-relaxed bg-black/60">
-                        > Studio Engine initialized. Select options and hit 'Generate Carousel' to begin...
+                    <div id="terminal" class="terminal p-4 text-sm text-green-400 overflow-y-auto flex-1">
+                        System ready. Waiting for task...
                     </div>
                 </div>
 
                 <!-- Results Area -->
-                <div id="resultsArea" class="hidden bg-gray-900 border border-gray-800 p-6 rounded-2xl shadow-xl space-y-6">
-                    <div class="flex justify-between items-center border-b border-gray-800 pb-3">
-                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                            <span>✨ Generated Carousel</span>
-                            <span id="resultCountBadge" class="text-xs bg-purple-900/60 text-purple-300 px-2 py-0.5 rounded-full border border-purple-700"></span>
-                        </h2>
-                        <button onclick="downloadAll()" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-2 px-4 rounded-xl transition flex items-center gap-1.5 shadow-md shadow-purple-900/40">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            <span>Download All Slides</span>
-                        </button>
-                    </div>
+                <div id="resultsArea" class="hidden bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+                    <h2 class="text-xl font-semibold mb-4 border-b border-gray-600 pb-2">Generated Results</h2>
                     
-                    <!-- Caption Box -->
-                    <div>
-                        <div class="flex justify-between items-center mb-1.5">
-                            <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400">Instagram Caption:</h3>
-                            <button onclick="copyCaption()" id="copyBtn" class="text-xs text-purple-400 hover:text-purple-300 font-medium">Copy Text</button>
-                        </div>
-                        <div id="captionBox" class="bg-gray-950 border border-gray-800 p-4 rounded-xl text-xs text-gray-300 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto"></div>
+                    <div class="mb-4">
+                        <h3 class="text-sm font-medium text-gray-400 mb-2">Generated Caption:</h3>
+                        <div id="captionBox" class="bg-gray-700 p-3 rounded text-sm text-gray-200 whitespace-pre-wrap"></div>
                     </div>
 
-                    <!-- Slide Thumbnails Gallery -->
-                    <div>
-                        <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Slide Previews (3:4 Ratio):</h3>
-                        <div id="slidesGallery" class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <!-- Injected dynamically -->
-                        </div>
+                    <h3 class="text-sm font-medium text-gray-400 mb-2">Slides:</h3>
+                    <div id="slidesGallery" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <!-- Slides will be injected here -->
+                    </div>
+                    
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="downloadAll()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition duration-200 flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Download All Images
+                        </button>
                     </div>
                 </div>
             </div>
@@ -150,19 +121,11 @@
         const resultsArea = document.getElementById('resultsArea');
         const slidesGallery = document.getElementById('slidesGallery');
         const captionBox = document.getElementById('captionBox');
-        const slideCountSlider = document.getElementById('slideCount');
-        const slideCountDisplay = document.getElementById('slideCountDisplay');
-        const resultCountBadge = document.getElementById('resultCountBadge');
         
         const topicModeRadios = document.getElementsByName('topicMode');
         const customTopicContainer = document.getElementById('customTopicContainer');
 
         let generatedSlides = [];
-
-        // Slide count slider listener
-        slideCountSlider.addEventListener('input', (e) => {
-            slideCountDisplay.textContent = `${e.target.value} Slides`;
-        });
 
         // Toggle custom topic text area
         topicModeRadios.forEach(radio => {
@@ -173,6 +136,12 @@
                     customTopicContainer.classList.add('hidden');
                 }
             });
+        });
+
+        const slideCountSlider = document.getElementById('slideCount');
+        const slideCountVal = document.getElementById('slideCountVal');
+        slideCountSlider.addEventListener('input', (e) => {
+            slideCountVal.textContent = `${e.target.value} Slides`;
         });
 
         function logToTerminal(msg, color = 'text-green-400') {
@@ -192,22 +161,18 @@
             slidesGallery.innerHTML = '';
             generatedSlides = [];
             runBtn.disabled = true;
-            runBtn.innerHTML = `
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <span>Generating Carousel...</span>
-            `;
-            runBtn.classList.replace('from-purple-600', 'from-gray-700');
-            runBtn.classList.replace('to-indigo-600', 'to-gray-700');
+            runBtn.textContent = 'Running...';
+            runBtn.classList.replace('bg-blue-600', 'bg-gray-600');
 
             const payload = {
-                channelName: document.getElementById('channelName').value || '1affairs',
-                slideCount: parseInt(slideCountSlider.value) || 5,
+                channelName: document.getElementById('channelName').value,
+                slideCount: parseInt(document.getElementById('slideCount').value) || 3,
                 category: document.getElementById('category').value,
                 topicMode: document.querySelector('input[name="topicMode"]:checked').value,
                 customTopic: document.getElementById('customTopic').value,
             };
 
-            logToTerminal(`Initializing ${payload.slideCount}-slide storytelling pipeline for @${payload.channelName}...`, 'text-purple-400 font-bold');
+            logToTerminal(`Initializing pipeline (${payload.slideCount} slides)...`, 'text-blue-400');
 
             try {
                 const res = await fetch('/api/generate', {
@@ -226,11 +191,11 @@
                     if (data.type === 'log') {
                         logToTerminal(data.message);
                     } else if (data.type === 'error') {
-                        logToTerminal(`ERROR: ${data.message}`, 'text-red-500 font-bold');
+                        logToTerminal(`ERROR: ${data.message}`, 'text-red-500');
                         eventSource.close();
                         resetBtn();
                     } else if (data.type === 'done') {
-                        logToTerminal('All slides successfully generated and verified!', 'text-purple-400 font-bold');
+                        logToTerminal('Pipeline finished successfully!', 'text-blue-400');
                         eventSource.close();
                         showResults(data.data);
                         resetBtn();
@@ -238,65 +203,47 @@
                 };
                 
                 eventSource.onerror = () => {
-                    logToTerminal('Connection closed.', 'text-gray-400');
+                    logToTerminal('Lost connection to server.', 'text-red-500');
                     eventSource.close();
                     resetBtn();
                 };
 
             } catch (err) {
-                logToTerminal(`Request failed: ${err.message}`, 'text-red-500 font-bold');
+                logToTerminal(`Request failed: ${err.message}`, 'text-red-500');
                 resetBtn();
             }
         });
 
         function showResults(data) {
             resultsArea.classList.remove('hidden');
-            resultCountBadge.textContent = `${data.slides.length} Slides Ready`;
             captionBox.textContent = data.caption || 'No caption generated.';
             
-            data.slides.forEach((slideFile, idx) => {
+            data.slides.forEach(slideFile => {
                 const url = `/output/${slideFile}?t=${Date.now()}`;
                 generatedSlides.push(url);
                 
                 const div = document.createElement('div');
-                div.className = 'relative group border border-gray-800 rounded-2xl overflow-hidden aspect-[3/4] bg-gray-950 shadow-lg';
+                div.className = 'relative group border border-gray-600 rounded overflow-hidden aspect-[3/4]';
                 div.innerHTML = `
                     <img src="${url}" class="w-full h-full object-cover">
-                    <div class="absolute top-3 left-3 bg-black/75 backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-bold text-white border border-white/10">
-                        Slide ${idx + 1}/${data.slides.length}
-                    </div>
-                    <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center">
-                        <a href="${url}" download="${slideFile}" class="bg-purple-600 text-white text-xs font-semibold py-2 px-4 rounded-xl hover:bg-purple-500 transition shadow-lg">
-                            Download Slide
-                        </a>
+                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <a href="${url}" download="${slideFile}" class="bg-gray-900 bg-opacity-80 text-white text-xs py-1 px-3 rounded hover:bg-gray-700">Download</a>
                     </div>
                 `;
                 slidesGallery.appendChild(div);
             });
-            resultsArea.scrollIntoView({ behavior: 'smooth' });
         }
 
         function resetBtn() {
             runBtn.disabled = false;
-            runBtn.innerHTML = `
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                <span>Generate Carousel</span>
-            `;
-            runBtn.classList.replace('from-gray-700', 'from-purple-600');
-            runBtn.classList.replace('to-gray-700', 'to-indigo-600');
-        }
-
-        function copyCaption() {
-            const text = captionBox.textContent;
-            navigator.clipboard.writeText(text).then(() => {
-                const btn = document.getElementById('copyBtn');
-                btn.textContent = 'Copied! ✓';
-                setTimeout(() => btn.textContent = 'Copy Text', 2000);
-            });
+            runBtn.textContent = 'Generate Carousel';
+            runBtn.classList.replace('bg-gray-600', 'bg-blue-600');
         }
 
         async function downloadAll() {
             if (generatedSlides.length === 0) return;
+            
+            // Create temporary links to trigger multiple downloads
             for (let i = 0; i < generatedSlides.length; i++) {
                 const link = document.createElement('a');
                 link.href = generatedSlides[i];
@@ -304,7 +251,8 @@
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                await new Promise(r => setTimeout(r, 250));
+                // Small delay to prevent browser blocking multiple downloads
+                await new Promise(r => setTimeout(r, 200));
             }
         }
     </script>
