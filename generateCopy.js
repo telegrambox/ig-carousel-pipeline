@@ -17,19 +17,19 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
         const isExam = /exam|protest|jssc|student|paper leak/i.test(story.headline);
         const isTech = /ai|tech|chip|semiconductor|aerospace/i.test(story.headline);
 
-        const defaultKeywords = isEnergy
-            ? ["solar panel farm", "wind turbine energy", "power transmission grid", "stock market investing", "clean energy city"]
+        const defaultPrompts = isEnergy
+            ? ["Cinematic editorial photo of a sprawling solar energy park at sunset with glowing panels", "Dramatic low angle shot of towering wind turbines against a stormy sky", "Wide shot of a complex high voltage power transmission grid", "Close up of glowing green digital stock market charts", "Futuristic utopian clean energy city skyline at dawn"]
             : isExam
-            ? ["student protest demonstration", "government secretariat building", "students in examination hall", "justice supreme court", "university campus"]
+            ? ["Crowd of angry students holding protest signs on a city street", "Imposing stone government secretariat building in the afternoon", "Rows of students taking an examination in a massive hall", "Scales of justice sitting on a wooden desk in a courtroom", "Quiet empty university campus path in autumn"]
             : isTech
-            ? ["aerospace aircraft hangar", "semiconductor microchip cleanroom", "high tech robotics", "global trade partnership", "modern smart city"]
-            : ["corporate boardroom meeting", "stock exchange trading floor", "financial charts screen", "modern business skyscraper", "global business conference"];
+            ? ["Sleek modern aerospace aircraft hangar with a prototype jet", "Workers in full cleanroom suits inspecting a semiconductor microchip wafer", "Advanced robotic arms assembling electronics in a high tech factory", "Global trade shipping containers stacked at a bustling port", "Neon lit modern smart city street at night"]
+            : ["Intense corporate boardroom meeting with executives looking at a glowing screen", "Frantic stock exchange trading floor with brokers yelling", "Abstract macro shot of financial charts and graphs glowing red and green", "Looking up at a towering modern glass business skyscraper", "Crowded global business conference hall with a speaker on stage"];
 
         const slides = [
             {
                 text: `Breaking: <span class='highlight'>${story.headline.split(' - ')[0]}</span>`,
                 subtext: "Swipe to read more | SWIPE",
-                bgKeyword: defaultKeywords[0]
+                imagePrompt: defaultPrompts[0]
             }
         ];
 
@@ -37,21 +37,21 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
             slides.push({
                 text: `According to recent reports, <span class='highlight'>this could trigger a massive ripple effect across the sector.</span>`,
                 subtext: "The impact on the market is huge | SWIPE",
-                bgKeyword: defaultKeywords[i % defaultKeywords.length]
+                imagePrompt: defaultPrompts[i % defaultPrompts.length]
             });
         }
 
         slides.push({
             text: `Will this lead to <span class='highlight'>a permanent shift in the industry?</span>`,
             subtext: "What do you think? | READ CAPTION",
-            bgKeyword: defaultKeywords[(count - 1) % defaultKeywords.length]
+            imagePrompt: defaultPrompts[(count - 1) % defaultPrompts.length]
         });
 
         return {
             caption: `Breaking News from ${channelName}! 🚀\n\n${story.headline}\n\nWhat are your thoughts on this? Let us know below! 👇\n\n#${channelName} #finance #news`,
             personName: person,
             circleImageKeyword: isEnergy ? "solar panel" : isExam ? "protest sign" : isTech ? "fighter jet" : "stock chart",
-            bgKeyword: defaultKeywords[0],
+            imagePrompt: defaultPrompts[0],
             slides: slides
         };
     }
@@ -65,19 +65,23 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
     Analyze the following news story and turn it into high-converting, viral carousel copy matching our brand style.
 
     CRITICAL RULE FOR IMAGES:
-    Every single slide MUST have a distinct, highly relevant "bgKeyword" representing what that specific slide discusses (e.g. Slide 1: "solar energy park", Slide 2: "power transmission lines", Slide 3: "wall street trading floor", Slide 4: "clean energy future skyline"). DO NOT repeat the same bgKeyword across slides!
+    Every single slide MUST have a distinct, highly relevant "imagePrompt" representing what that specific slide discusses. 
+    This prompt will be used to generate an AI image. Make it detailed, descriptive, and photorealistic. 
+    (e.g., "Cinematic editorial photo of a sprawling solar energy park at sunset with glowing panels", 
+    "High contrast wide angle shot of wall street trading floor with red downward trend lines"). 
+    DO NOT repeat the same imagePrompt across slides!
 
     The output MUST be valid JSON matching exactly this shape:
     {
         "caption": "A short engaging caption for the instagram post, including relevant hashtags.",
         "personName": "Full name of the main person/leader/businessman in this story (e.g., 'Gautam Adani', 'Nirmala Sitharaman', 'Mukesh Ambani'). If none, null.",
         "circleImageKeyword": "A specific 1-2 word keyword for a secondary circular visual (e.g., 'mansion', 'stock market chart', 'rupee money', 'factory', 'cricket stadium').",
-        "bgKeyword": "A 1-2 word main topic keyword for slide 1.",
+        "imagePrompt": "A detailed image generation prompt for slide 1.",
         "slides": [
             {
                 "text": "The main hook sentence here. Wrap the most striking stat/claim in <span class='highlight'>bold claim here</span>.",
                 "subtext": "A brief supporting quote or stat. | SWIPE",
-                "bgKeyword": "Specific 2-3 word keyword for the background photo of THIS slide."
+                "imagePrompt": "Detailed, descriptive, photorealistic image generation prompt for the background photo of THIS slide."
             }
         ]
     }

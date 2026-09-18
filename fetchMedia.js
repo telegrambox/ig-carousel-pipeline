@@ -155,37 +155,49 @@ async function fetchWikimediaImage(keyword, savePath) {
 }
 
 /**
- * Intelligent Multi-Tier Topic Image Fetcher:
- * 1. Tries Wikipedia Topic Article lead photo (authentic real-world photo of the topic/event)
- * 2. Tries filtered Wikimedia Commons
- * 3. Falls back to curated photography with unique seed/lock
+ * Intelligent Topic Image Fetcher:
+ * Tries Pollinations AI (Flux) for highly relevant contextual imagery.
+ * Falls back to LoremFlickr on failure.
  */
-async function fetchTopicImage(keyword, savePath, seed = 1) {
-    // 1. Try Wikipedia article authentic photo
-    const wikiArticlePhoto = await fetchWikipediaArticlePhoto(keyword, savePath);
-    if (wikiArticlePhoto) return wikiArticlePhoto;
-
-    // 2. Try Wikimedia Commons genuine photo
-    const wikiCommonsPhoto = await fetchWikimediaImage(keyword, savePath);
-    if (wikiCommonsPhoto) return wikiCommonsPhoto;
-
-    // 3. Fall back to curated photo engine with unique lock
+async function fetchTopicImage(promptText, savePath, seed = 1) {
     try {
-        const words = keyword.trim().split(/\s+/).filter(w => w.length > 2);
-        const cleanKeyword = encodeURIComponent(words.slice(0, 2).join(',') || "business,news");
-        const lockSeed = Math.floor(Math.random() * 1000) + (seed * 43);
-        const url = `https://loremflickr.com/1080/1080/${cleanKeyword}?lock=${lockSeed}`;
-        console.log(`Fetching curated photo for '${keyword}' with tags '${cleanKeyword}' (lock ${lockSeed})...`);
+        console.log(`Generating AI photo for prompt: '${promptText}'...`);
+        // Enhance the prompt for photorealism and contextual relevance
+        const enhancedPrompt = `${promptText}, photorealistic, high quality editorial photography, sharp focus`;
+        // We use a unique seed for each slide so they don't look identical
+        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=1080&height=1080&model=flux&nologo=true&seed=${Math.floor(Math.random() * 1000000) + seed}`;
+        
         const res = await fetch(url, {
             headers: { 'User-Agent': '1affairs-media-pipeline/2.0' }
         });
+        
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        
         const buffer = await res.buffer();
         fs.writeFileSync(savePath, buffer);
-        console.log(`Saved curated topic image to ${savePath}`);
+        console.log(`Saved AI image to ${savePath}`);
         return savePath;
     } catch (err) {
-        console.error(`Error fetching topic image for ${keyword}:`, err.message);
-        return null;
+        console.error(`Pollinations AI generation failed for '${promptText}':`, err.message);
+        
+        // Fall back to curated photo engine with unique lock
+        try {
+            const words = promptText.trim().split(/\s+/).filter(w => w.length > 2);
+            const cleanKeyword = encodeURIComponent(words.slice(0, 2).join(',') || "business,news");
+            const lockSeed = Math.floor(Math.random() * 1000) + (seed * 43);
+            const url = `https://loremflickr.com/1080/1080/${cleanKeyword}?lock=${lockSeed}`;
+            console.log(`Fallback: Fetching curated photo with tags '${cleanKeyword}' (lock ${lockSeed})...`);
+            const res = await fetch(url, {
+                headers: { 'User-Agent': '1affairs-media-pipeline/2.0' }
+            });
+            const buffer = await res.buffer();
+            fs.writeFileSync(savePath, buffer);
+            console.log(`Saved fallback curated topic image to ${savePath}`);
+            return savePath;
+        } catch (fallbackErr) {
+            console.error(`Fallback fetching also failed:`, fallbackErr.message);
+            return null;
+        }
     }
 }
 
