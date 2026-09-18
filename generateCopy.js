@@ -108,8 +108,34 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
 
         return parsed;
     } catch (e) {
-        console.error("AI JSON Parse Error. Raw content:", content);
-        throw new Error("Failed to parse AI JSON output: " + e.message);
+        console.error("AI JSON Parse Error (Output may be truncated). Generating smart fallback. Raw content:", content);
+        
+        const parts = story.headline.split(' - ');
+        const mainSubject = parts[0].split(' ').slice(0, 2).join(' ') || "News";
+        
+        const fallback = {
+            caption: `Breaking News from ${channelName}! 🚀\n\n${story.headline}\n\n#${channelName} #news`,
+            personName: null,
+            circleImageKeyword: mainSubject,
+            imageEntity: mainSubject,
+            slides: []
+        };
+        
+        fallback.slides.push({
+            text: `Breaking: <span class='highlight'>${parts[0]}</span>`,
+            subtext: "Swipe to read more | SWIPE",
+            imageEntity: mainSubject
+        });
+
+        for (let i = 1; i < count; i++) {
+            fallback.slides.push({
+                text: `This developing story highlights <span class='highlight'>major impacts ahead.</span>`,
+                subtext: i === count - 1 ? "What do you think? | READ CAPTION" : "More details emerging | SWIPE",
+                imageEntity: mainSubject
+            });
+        }
+        
+        return fallback;
     }
 }
 
