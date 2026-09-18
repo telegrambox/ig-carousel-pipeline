@@ -93,11 +93,11 @@ async function run(options = {}) {
     const totalSlides = copyData.slides.length;
     for (let idx = 0; idx < totalSlides; idx++) {
         const slide = copyData.slides[idx];
-        const slidePrompt = slide.imagePrompt || copyData.imagePrompt || slide.bgKeyword || copyData.bgKeyword || bestStory.headline;
+        const slideEntity = slide.imageEntity || copyData.imageEntity || slide.bgKeyword || copyData.bgKeyword || bestStory.headline;
         const slideImgPath = path.join(outputDir, `slide_bg_${idx + 1}.jpg`);
         
-        onProgress(`Fetching context-specific photo for Slide ${idx + 1}/${totalSlides} ('${slidePrompt}')...`);
-        const downloaded = await fetchTopicImage(slidePrompt, slideImgPath, idx + 1);
+        onProgress(`Fetching context-specific real photo for Slide ${idx + 1}/${totalSlides} ('${slideEntity}')...`);
+        const downloaded = await fetchTopicImage(slideEntity, slideImgPath, idx + 1);
         slide.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : "";
         
         // Slide 1 has the hero person cutout & circular badge

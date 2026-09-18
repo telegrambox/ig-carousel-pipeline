@@ -17,19 +17,19 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
         const isExam = /exam|protest|jssc|student|paper leak/i.test(story.headline);
         const isTech = /ai|tech|chip|semiconductor|aerospace/i.test(story.headline);
 
-        const defaultPrompts = isEnergy
-            ? ["Cinematic editorial photo of a sprawling solar energy park at sunset with glowing panels", "Dramatic low angle shot of towering wind turbines against a stormy sky", "Wide shot of a complex high voltage power transmission grid", "Close up of glowing green digital stock market charts", "Futuristic utopian clean energy city skyline at dawn"]
+        const defaultEntities = isEnergy
+            ? ["Solar power", "Wind turbine", "Electrical grid", "Stock market", "Green energy"]
             : isExam
-            ? ["Crowd of angry students holding protest signs on a city street", "Imposing stone government secretariat building in the afternoon", "Rows of students taking an examination in a massive hall", "Scales of justice sitting on a wooden desk in a courtroom", "Quiet empty university campus path in autumn"]
+            ? ["Protest", "Secretariat building", "Examination", "Supreme Court", "University"]
             : isTech
-            ? ["Sleek modern aerospace aircraft hangar with a prototype jet", "Workers in full cleanroom suits inspecting a semiconductor microchip wafer", "Advanced robotic arms assembling electronics in a high tech factory", "Global trade shipping containers stacked at a bustling port", "Neon lit modern smart city street at night"]
-            : ["Intense corporate boardroom meeting with executives looking at a glowing screen", "Frantic stock exchange trading floor with brokers yelling", "Abstract macro shot of financial charts and graphs glowing red and green", "Looking up at a towering modern glass business skyscraper", "Crowded global business conference hall with a speaker on stage"];
+            ? ["Hangar", "Semiconductor", "Industrial robot", "Cargo ship", "Smart city"]
+            : ["Boardroom", "Stock exchange", "Financial graph", "Skyscraper", "Business conference"];
 
         const slides = [
             {
                 text: `Breaking: <span class='highlight'>${story.headline.split(' - ')[0]}</span>`,
                 subtext: "Swipe to read more | SWIPE",
-                imagePrompt: defaultPrompts[0]
+                imageEntity: defaultEntities[0]
             }
         ];
 
@@ -37,21 +37,21 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
             slides.push({
                 text: `According to recent reports, <span class='highlight'>this could trigger a massive ripple effect across the sector.</span>`,
                 subtext: "The impact on the market is huge | SWIPE",
-                imagePrompt: defaultPrompts[i % defaultPrompts.length]
+                imageEntity: defaultEntities[i % defaultEntities.length]
             });
         }
 
         slides.push({
             text: `Will this lead to <span class='highlight'>a permanent shift in the industry?</span>`,
             subtext: "What do you think? | READ CAPTION",
-            imagePrompt: defaultPrompts[(count - 1) % defaultPrompts.length]
+            imageEntity: defaultEntities[(count - 1) % defaultEntities.length]
         });
 
         return {
             caption: `Breaking News from ${channelName}! 🚀\n\n${story.headline}\n\nWhat are your thoughts on this? Let us know below! 👇\n\n#${channelName} #finance #news`,
             personName: person,
-            circleImageKeyword: isEnergy ? "solar panel" : isExam ? "protest sign" : isTech ? "fighter jet" : "stock chart",
-            imagePrompt: defaultPrompts[0],
+            circleImageKeyword: isEnergy ? "Solar panel" : isExam ? "Protest" : isTech ? "Fighter aircraft" : "Stock market",
+            imageEntity: defaultEntities[0],
             slides: slides
         };
     }
@@ -65,23 +65,22 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
     Analyze the following news story and turn it into high-converting, viral carousel copy matching our brand style.
 
     CRITICAL RULE FOR IMAGES:
-    Every single slide MUST have a distinct, highly relevant "imagePrompt" representing what that specific slide discusses. 
-    This prompt will be used to generate an AI image. Make it detailed, descriptive, and photorealistic. 
-    (e.g., "Cinematic editorial photo of a sprawling solar energy park at sunset with glowing panels", 
-    "High contrast wide angle shot of wall street trading floor with red downward trend lines"). 
-    DO NOT repeat the same imagePrompt across slides!
+    Every single slide MUST have a distinct, highly relevant "imageEntity" representing what that specific slide discusses.
+    This entity MUST be a simple 1-2 word real-world physical noun or proper noun that exists on Wikipedia (e.g., 'Stock market', 'Narendra Modi', 'Semiconductor', 'Solar panel', 'Protest'). 
+    DO NOT use descriptive adjectives or long phrases.
+    DO NOT repeat the same imageEntity across slides!
 
     The output MUST be valid JSON matching exactly this shape:
     {
         "caption": "A short engaging caption for the instagram post, including relevant hashtags.",
         "personName": "Full name of the main person/leader/businessman in this story (e.g., 'Gautam Adani', 'Nirmala Sitharaman', 'Mukesh Ambani'). If none, null.",
-        "circleImageKeyword": "A specific 1-2 word keyword for a secondary circular visual (e.g., 'mansion', 'stock market chart', 'rupee money', 'factory', 'cricket stadium').",
-        "imagePrompt": "A detailed image generation prompt for slide 1.",
+        "circleImageKeyword": "A specific 1-2 word keyword for a secondary circular visual (e.g., 'Mansion', 'Stock market', 'Factory').",
+        "imageEntity": "A 1-2 word Wikipedia entity for slide 1.",
         "slides": [
             {
                 "text": "The main hook sentence here. Wrap the most striking stat/claim in <span class='highlight'>bold claim here</span>.",
                 "subtext": "A brief supporting quote or stat. | SWIPE",
-                "imagePrompt": "Detailed, descriptive, photorealistic image generation prompt for the background photo of THIS slide."
+                "imageEntity": "Specific 1-2 word Wikipedia entity for the background photo of THIS slide."
             }
         ]
     }
