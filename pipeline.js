@@ -2,7 +2,7 @@ const path = require("path");
 const fs = require("fs");
 const { getTrendingStats } = require("./source");
 const { selectBestStory, markAsUsed } = require("./select");
-const { generateCarouselCopy } = require("./generateCopy");
+const { generateCarouselCopy, buildContextualFallback } = require("./generateCopy");
 const { renderCarousel } = require("./render");
 const { fetchWikipediaImage, fetchTopicImage, removeBackground, resetUsedMedia } = require("./fetchMedia");
 
@@ -54,6 +54,34 @@ async function run(options = {}) {
         return { error: e.message };
     }
 
+    // Defensive normalization to prevent ANY undefined slides crash
+    if (!copyData || typeof copyData !== 'object') {
+        copyData = { slides: [] };
+    }
+    let slides = copyData.slides;
+    if (!Array.isArray(slides)) {
+        if (Array.isArray(copyData.carousel)) slides = copyData.carousel;
+        else if (Array.isArray(copyData.items)) slides = copyData.items;
+        else {
+            const slideKeys = Object.keys(copyData).filter(k => /^slide[_\s-]?\d+/i.test(k));
+            if (slideKeys.length > 0) {
+                slideKeys.sort();
+                slides = slideKeys.map(k => copyData[k]);
+            } else {
+                slides = [];
+            }
+        }
+    }
+    if (slides.length === 0) {
+        onProgress("Restoring missing slides from story context...");
+        const fallback = buildContextualFallback(bestStory, slideCount, channelName);
+        slides = fallback.slides;
+        copyData.caption = copyData.caption || fallback.caption;
+        copyData.personName = copyData.personName || fallback.personName;
+        copyData.circleImageKeyword = copyData.circleImageKeyword || fallback.circleImageKeyword;
+    }
+    copyData.slides = slides;
+
     onProgress("3. Preparing assets and rendering carousel images...");
     const outputDir = path.join(__dirname, "output");
     
@@ -68,7 +96,11 @@ async function run(options = {}) {
 
     // A. Fetch secondary circular badge image (for Slide 1)
     const circleFile = path.join(outputDir, "circle.jpg");
-    const circleKeyword = copyData.circleImageKeyword || "stock chart";
+    // Derive dynamic circle keyword from headline if missing (no more hardcoded "stock chart")
+    const headlineTokens = (bestStory.headline || "").split(/[:\-,\s]+/).filter(w => w.length > 3 && !/breaking|update|report/i.test(w));
+    const dynamicDefaultKeyword = headlineTokens[0] || (category === 'finance' ? "Finance" : "News");
+    const circleKeyword = copyData.circleImageKeyword || copyData.imageEntity || dynamicDefaultKeyword;
+
     onProgress(`Fetching secondary image for keyword: ${circleKeyword}...`);
     const circleDownloaded = await fetchTopicImage(circleKeyword, circleFile, 99);
     const circleUrl = circleDownloaded ? `file:///${circleFile.replace(/\\/g, '/')}` : "";
