@@ -1,68 +1,18 @@
 const { Anthropic } = require("@anthropic-ai/sdk");
+const fetch = require("node-fetch");
 
 async function generateCarouselCopy(story, channelName = '1affairs', slideCount = 3) {
     const count = Math.max(2, Math.min(8, parseInt(slideCount) || 3));
 
-    if (!process.env.ANTHROPIC_API_KEY) {
-        console.log(`No ANTHROPIC_API_KEY found, using mock generator for ${count} slides...`);
-        let person = null;
-        if (/adani/i.test(story.headline)) person = "Gautam Adani";
-        else if (/ambani/i.test(story.headline)) person = "Mukesh Ambani";
-        else if (/tata/i.test(story.headline)) person = "Ratan Tata";
-        else if (/musk/i.test(story.headline)) person = "Elon Musk";
-        else if (/modi/i.test(story.headline)) person = "Narendra Modi";
-
-        // Derive distinct topical keywords per slide
-        const isEnergy = /energy|solar|green|power|clean/i.test(story.headline);
-        const isExam = /exam|protest|jssc|student|paper leak/i.test(story.headline);
-        const isTech = /ai|tech|chip|semiconductor|aerospace/i.test(story.headline);
-
-        const defaultEntities = isEnergy
-            ? ["Solar power", "Wind turbine", "Electrical grid", "Stock market", "Green energy"]
-            : isExam
-            ? ["Protest", "Secretariat building", "Examination", "Supreme Court", "University"]
-            : isTech
-            ? ["Hangar", "Semiconductor", "Industrial robot", "Cargo ship", "Smart city"]
-            : ["Boardroom", "Stock exchange", "Financial graph", "Skyscraper", "Business conference"];
-
-        const slides = [
-            {
-                text: `Breaking: <span class='highlight'>${story.headline.split(' - ')[0]}</span>`,
-                subtext: "Swipe to read more | SWIPE",
-                imageEntity: defaultEntities[0]
-            }
-        ];
-
-        for (let i = 1; i < count - 1; i++) {
-            slides.push({
-                text: `According to recent reports, <span class='highlight'>this could trigger a massive ripple effect across the sector.</span>`,
-                subtext: "The impact on the market is huge | SWIPE",
-                imageEntity: defaultEntities[i % defaultEntities.length]
-            });
-        }
-
-        slides.push({
-            text: `Will this lead to <span class='highlight'>a permanent shift in the industry?</span>`,
-            subtext: "What do you think? | READ CAPTION",
-            imageEntity: defaultEntities[(count - 1) % defaultEntities.length]
-        });
-
-        return {
-            caption: `Breaking News from ${channelName}! 🚀\n\n${story.headline}\n\nWhat are your thoughts on this? Let us know below! 👇\n\n#${channelName} #finance #news`,
-            personName: person,
-            circleImageKeyword: isEnergy ? "Solar panel" : isExam ? "Protest" : isTech ? "Fighter aircraft" : "Stock market",
-            imageEntity: defaultEntities[0],
-            slides: slides
-        };
-    }
-
-    const anthropic = new Anthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-
     const prompt = `
     You are an expert Instagram copywriter for the media brand '${channelName}'.
     Analyze the following news story and turn it into high-converting, viral carousel copy matching our brand style.
+
+    CRITICAL RULE FOR NARRATIVE BUILDUP (NO REPETITIVE TEXT!):
+    Read the story deeply. You must break the story down into a progressive narrative across EXACTLY ${count} slides.
+    Do NOT follow a generic "Hook -> stat" loop. Think wisely about what information goes on what page.
+    Every single slide must convey distinct, meaningful information that builds the story context (e.g., Hook -> Background Context -> Shocking Detail -> Wider Impact -> Call to Action).
+    DO NOT repeat the same sentences or structures across slides!
 
     CRITICAL RULE FOR IMAGES:
     Every single slide MUST have a distinct, highly relevant "imageEntity" representing what that specific slide discusses.
@@ -78,8 +28,8 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
         "imageEntity": "A 1-2 word Wikipedia entity for slide 1.",
         "slides": [
             {
-                "text": "The main hook sentence here. Wrap the most striking stat/claim in <span class='highlight'>bold claim here</span>.",
-                "subtext": "A brief supporting quote or stat. | SWIPE",
+                "text": "The main hook or story detail here. Wrap the most striking stat/claim in <span class='highlight'>bold claim here</span>.",
+                "subtext": "A brief supporting thought. | SWIPE",
                 "imageEntity": "Specific 1-2 word Wikipedia entity for the background photo of THIS slide."
             }
         ]
@@ -91,26 +41,42 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
     Description: ${story.description || ""}
     `;
 
-    const response = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 800,
-        temperature: 0.7,
-        system: "You output ONLY raw JSON without any markdown formatting. Do not output anything else.",
-        messages: [
-            {
-                role: "user",
-                content: prompt
-            }
-        ]
-    });
+    let content = "";
+
+    if (process.env.ANTHROPIC_API_KEY) {
+        console.log("Using Anthropic Claude for copy generation...");
+        const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+        const response = await anthropic.messages.create({
+            model: "claude-3-5-sonnet-20241022",
+            max_tokens: 800,
+            temperature: 0.7,
+            system: "You output ONLY raw JSON without any markdown formatting. Do not output anything else.",
+            messages: [{ role: "user", content: prompt }]
+        });
+        content = response.content[0].text.trim();
+    } else {
+        console.log("No ANTHROPIC_API_KEY found, using free Pollinations Text AI for dynamic copy generation...");
+        const res = await fetch('https://text.pollinations.ai/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: [
+                    { role: "system", content: "You output ONLY raw JSON without any markdown formatting. Do not output anything else." },
+                    { role: "user", content: prompt }
+                ],
+                jsonMode: true,
+                model: "openai"
+            })
+        });
+        content = await res.text();
+    }
     
-    let content = response.content[0].text.trim();
-    content = content.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    content = content.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
     
     try {
         return JSON.parse(content);
     } catch (e) {
-        throw new Error("Failed to parse Claude JSON: " + content);
+        throw new Error("Failed to parse AI JSON output: " + content);
     }
 }
 
