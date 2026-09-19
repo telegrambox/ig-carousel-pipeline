@@ -263,23 +263,35 @@ async function downloadDirectImageUrl(rawUrl, savePath) {
                     return savePath;
                 }
             } else if (ctype.includes('text/html')) {
-                // It's a webpage! Try to extract og:image or twitter:image
-                console.log(`URL returned HTML, searching for og:image meta tag...`);
+                // It's a webpage! Try to extract og:image, twitter:image, link rel=image_src, or json-ld
+                console.log(`URL returned HTML, searching for lead image meta tags...`);
                 const html = await res.text();
                 const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
                                 html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i) ||
-                                html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i);
-                if (ogMatch && ogMatch[1]) {
-                    let ogUrl = ogMatch[1].trim();
+                                html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i) ||
+                                html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i) ||
+                                html.match(/<link[^>]*rel=["']image_src["'][^>]*href=["']([^"']+)["']/i);
+                
+                let foundImgUrl = ogMatch ? ogMatch[1].trim() : null;
+
+                // Fallback to JSON-LD image property if meta tag wasn't present
+                if (!foundImgUrl) {
+                    const jsonLdMatch = html.match(/"image"\s*:\s*(?:\[\s*)?["'](https?:\/\/[^"']+)["']/i);
+                    if (jsonLdMatch) foundImgUrl = jsonLdMatch[1].trim();
+                }
+
+                if (foundImgUrl) {
+                    let ogUrl = foundImgUrl;
                     if (ogUrl.startsWith('//')) ogUrl = 'https:' + ogUrl;
                     else if (ogUrl.startsWith('/')) {
                         try { ogUrl = new URL(ogUrl, fetchUrl).href; } catch (e) {}
                     }
-                    console.log(`Found og:image: ${ogUrl}, downloading...`);
+                    console.log(`Found lead article image: ${ogUrl}, downloading...`);
                     const ogRes = await fetch(ogUrl, {
                         headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                            'Accept': 'image/*,*/*'
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+                            'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+                            ...(origin ? { 'Referer': origin } : {})
                         },
                         redirect: 'follow',
                         timeout: 8000
@@ -288,7 +300,7 @@ async function downloadDirectImageUrl(rawUrl, savePath) {
                         const ogBuf = await ogRes.buffer();
                         if (ogBuf && ogBuf.length > 1000) {
                             fs.writeFileSync(savePath, ogBuf);
-                            console.log(`Saved og:image to ${savePath}`);
+                            console.log(`Saved lead image to ${savePath}`);
                             return savePath;
                         }
                     }
@@ -334,8 +346,11 @@ async function fetchTopicImage(entityKeyword, savePath, seed = 1, fallbackKeywor
 
     // 1. Direct web image URLs (Primary and Optional Backup)
     const entityUrls = cleanEntity.match(/https?:\/\/[^\s"'>,;|]+/gi) || [];
-    const primaryUrl = entityUrls[0] || (cleanEntity.startsWith('http') ? cleanEntity : null);
-    const secondaryUrl = backupUrl || entityUrls[1] || null;
+    const isPrimaryHttp = cleanEntity.startsWith('http://') || cleanEntity.startsWith('https://') || entityUrls.length > 0;
+    const primaryUrl = isPrimaryHttp ? (entityUrls[0] || cleanEntity) : null;
+    // CRITICAL: Only allow backupUrl if the visual request is URL-based.
+    // If user explicitly chose a keyword, do NOT let a leftover backupUrl hijack the search!
+    const secondaryUrl = (isPrimaryHttp && backupUrl && backupUrl !== primaryUrl && backupUrl.startsWith('http')) ? backupUrl : null;
 
     if (primaryUrl) {
         console.log(`Attempting Primary URL: ${primaryUrl}`);

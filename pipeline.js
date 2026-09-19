@@ -355,10 +355,16 @@ async function regenerateSingleSlide(slideIndex, slideData, options = {}) {
     const slideImgPath = path.join(outputDir, `slide_bg_${idx + 1}.jpg`);
     const targetImageOrKeyword = slideData.imageUrl || slideData.imageEntity || "News";
     const backupUrl = slideData.backupImageUrl || null;
+    let fallbackKeyword = (slideData.imageEntity && !slideData.imageEntity.startsWith('http')) ? slideData.imageEntity : null;
+    if (!fallbackKeyword) {
+        const cleanText = (slideData.text || "").replace(/<[^>]+>/g, '').replace(/[:\-–|]/g, ' ').trim();
+        const words = cleanText.split(/\s+/).filter(w => w.length > 3 && !/^(about|after|before|several|nearly|amid|across|official|underway|their|there)$/i.test(w));
+        fallbackKeyword = words.slice(0, 3).join(' ') || "News";
+    }
 
     onProgress(`Re-fetching image for Slide ${idx + 1} ('${targetImageOrKeyword.substring(0, 35)}'${backupUrl ? ' [+ Backup URL]' : ''})...`);
     const seed = Math.floor(Math.random() * 1000) + (idx + 1) * 73;
-    const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, seed, slideData.imageEntity, backupUrl);
+    const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, seed, fallbackKeyword, backupUrl);
     slideData.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slideData.imageUrl || "");
 
     // Slide 1 Hero Addon handling (Circular badge & Person Cutout for Default template ONLY, or Daily News Cover)
