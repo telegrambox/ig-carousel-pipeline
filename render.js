@@ -105,9 +105,16 @@ async function renderSlide(data, outputPath) {
   // Convert any local file paths to base64 data URIs
   const preparedData = {
     ...data,
+    channelName: data.channelName || '1affairs',
     bgImagePath: toDataUri(data.bgImagePath),
     cutoutImagePath: toDataUri(data.cutoutImagePath),
     circleImagePath: toDataUri(data.circleImagePath),
+    cutouts: Array.isArray(data.cutouts)
+      ? data.cutouts.map(c => ({ ...c, image: toDataUri(c.image) }))
+      : undefined,
+    badges: Array.isArray(data.badges)
+      ? data.badges.map(b => ({ ...b, image: toDataUri(b.image) }))
+      : undefined,
   };
 
   const html = buildSlideHTML(preparedData);

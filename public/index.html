@@ -224,79 +224,167 @@
         </div>
     </div>
 
-    <!-- Edit Single Slide Modal -->
-    <div id="editSlideModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-gray-900 border border-gray-700 rounded-xl max-w-lg w-full p-5 space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center border-b border-gray-800 pb-2">
-                <h3 id="editModalTitle" class="text-base font-bold text-white">Edit Slide</h3>
-                <button onclick="closeEditModal()" class="text-gray-400 hover:text-white">&times;</button>
+    <!-- Canva-Style Visual Slide Editor Modal -->
+    <div id="editSlideModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+        <div class="bg-gray-900 border border-gray-700 rounded-2xl max-w-5xl w-full p-4 sm:p-6 space-y-4 shadow-2xl my-auto max-h-[95vh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <span class="bg-indigo-900/60 text-indigo-300 text-xs font-bold px-2 py-0.5 rounded-md border border-indigo-700/40">Visual Editor</span>
+                    <h3 id="editModalTitle" class="text-base sm:text-lg font-bold text-white">Edit Slide</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="closeEditModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 text-lg leading-none">&times;</button>
+                </div>
             </div>
             <input type="hidden" id="editModalSlideIndex">
 
-            <div>
-                <label class="block text-xs font-semibold text-gray-400 mb-1">Slide Text (with highlights)</label>
-                <textarea id="editModalText" rows="3" class="w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-2.5 text-xs text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-            </div>
+            <!-- Modal Body: 2-Column Split Workspace -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 overflow-y-auto pr-1 flex-1">
+                <!-- Left: Live 3:4 Visual Canvas Preview -->
+                <div class="lg:col-span-5 flex flex-col items-center justify-start space-y-2">
+                    <div class="w-full flex items-center justify-between text-xs text-gray-400 px-1">
+                        <span class="font-semibold text-gray-300">Live Visual Canvas</span>
+                        <span class="text-[10px] text-gray-500">1080×1440 Preview</span>
+                    </div>
 
-            <div>
-                <label class="block text-xs font-semibold text-gray-400 mb-1">Subtext / Transition Note</label>
-                <input type="text" id="editModalSubtext" class="w-full bg-gray-800 border border-gray-700 rounded-md py-1.5 px-2.5 text-xs text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
+                    <!-- 3:4 Preview Container -->
+                    <div id="canvaCanvas" class="relative w-full max-w-[320px] aspect-[3/4] bg-white rounded-xl overflow-hidden shadow-2xl border-2 border-gray-700 select-none">
+                        <!-- Top Dotted Pattern Texture -->
+                        <div id="canvaDottedBg" class="absolute inset-0 pointer-events-none z-10" style="background-image: radial-gradient(#cad3e3 2px, transparent 2px); background-size: 18px 18px;"></div>
+                        
+                        <!-- Main Brand Header -->
+                        <div class="absolute top-3 inset-x-0 flex items-center justify-center gap-1.5 z-30">
+                            <span id="canvaBrandName" class="text-xs font-black tracking-tight text-gray-900 lowercase">1affairs</span>
+                            <div class="w-4 h-4 rounded-full border border-gray-900 flex items-center justify-center">
+                                <svg class="w-2 h-2 text-gray-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                            </div>
+                        </div>
 
-            <div>
-                <label class="block text-xs font-semibold text-gray-400 mb-1">Image Search Keyword OR Image URL</label>
-                <input type="text" id="editModalImageEntity" class="w-full bg-gray-800 border border-gray-700 rounded-md py-1.5 px-2.5 text-xs text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Police van OR https://...">
-            </div>
+                        <!-- Main Headline & Subtext -->
+                        <div class="absolute top-9 inset-x-0 px-3.5 text-center z-30 space-y-1 pointer-events-none">
+                            <div id="canvaHeadline" class="text-[13px] font-extrabold leading-tight text-gray-950 tracking-tight">
+                                Headline text here
+                            </div>
+                            <div id="canvaSubtext" class="text-[9px] font-semibold italic text-gray-700 leading-tight">
+                                Subtext here
+                            </div>
+                        </div>
 
-            <div>
-                <label class="block text-xs font-semibold text-gray-400 mb-1">Or Upload Local Image</label>
-                <input type="file" id="editModalFileInput" accept="image/*" class="w-full text-xs text-gray-400 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:bg-gray-800 file:text-gray-300 hover:file:bg-gray-700">
-            </div>
+                        <!-- Atmospheric Background Scene -->
+                        <div id="canvaSceneContainer" class="absolute inset-x-0 bottom-0 top-[35%] overflow-hidden z-0">
+                            <!-- Background photo -->
+                            <div id="canvaBgLayer" class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-color: #1e293b;"></div>
+                            <!-- Scene top fade into white -->
+                            <div id="canvaSceneFade" class="absolute top-0 inset-x-0 h-2/5 pointer-events-none" style="background: linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0.8) 30%, rgba(255,255,255,0) 100%);"></div>
+                            
+                            <!-- Badges Layer -->
+                            <div id="canvaBadgesContainer" class="absolute inset-0 pointer-events-none z-18"></div>
 
-            <!-- Hero Addons Section (Slide 1 Only) -->
-            <div id="editModalSlide1Addons" class="hidden p-3.5 bg-gray-800/80 border border-indigo-500/40 rounded-lg space-y-3">
-                <div class="flex items-center justify-between border-b border-gray-700/60 pb-1.5">
-                    <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Slide 1 Hero Visual Addons</span>
+                            <!-- Cutouts Layer -->
+                            <div id="canvaCutoutsContainer" class="absolute inset-0 pointer-events-none z-15"></div>
+
+                            <!-- Bottom Vignette -->
+                            <div class="absolute bottom-0 inset-x-0 h-1/4 pointer-events-none z-20" style="background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%);"></div>
+                        </div>
+                    </div>
+                    <div class="text-[10px] text-gray-500 text-center">Move sliders on the right to position cutouts & badges live</div>
                 </div>
 
-                <!-- Circular Badge Inset -->
-                <div class="space-y-1.5">
-                    <div class="flex items-center justify-between">
-                        <label class="text-xs font-semibold text-gray-200">Circular Badge Inset Visual</label>
-                        <label class="text-[11px] text-gray-400 flex items-center gap-1 cursor-pointer">
-                            <input type="checkbox" id="editModalShowCircle" checked class="rounded text-blue-500">
-                            <span>Show Badge</span>
-                        </label>
+                <!-- Right: Canva-Style Control Panels -->
+                <div class="lg:col-span-7 flex flex-col space-y-3">
+                    <!-- Control Tabs -->
+                    <div class="grid grid-cols-4 gap-1 bg-gray-800 p-1 rounded-lg border border-gray-700 text-xs font-semibold text-center flex-shrink-0">
+                        <button type="button" onclick="switchCanvaTab('text')" id="canvaTab_text" class="py-1.5 px-2 rounded-md transition bg-blue-600 text-white shadow">📝 Copy</button>
+                        <button type="button" onclick="switchCanvaTab('bg')" id="canvaTab_bg" class="py-1.5 px-2 rounded-md transition text-gray-400 hover:text-white">🖼 Photo</button>
+                        <button type="button" onclick="switchCanvaTab('cutouts')" id="canvaTab_cutouts" class="py-1.5 px-2 rounded-md transition text-gray-400 hover:text-white">👥 Cutouts</button>
+                        <button type="button" onclick="switchCanvaTab('badges')" id="canvaTab_badges" class="py-1.5 px-2 rounded-md transition text-gray-400 hover:text-white">🔘 Badges</button>
                     </div>
-                    <input type="text" id="editModalCircleKeyword" placeholder="Keyword or URL (e.g. Samrat Choudhary or https://...)" class="w-full bg-gray-900 border border-gray-700 rounded py-1.5 px-2.5 text-xs text-gray-100">
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] text-gray-500">Or upload:</span>
-                        <input type="file" id="editModalCircleFile" accept="image/*" class="text-[11px] text-gray-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-gray-700 file:text-gray-300">
-                    </div>
-                </div>
 
-                <!-- Person Portrait Cutout -->
-                <div class="space-y-1.5 border-t border-gray-700/60 pt-2">
-                    <div class="flex items-center justify-between">
-                        <label class="text-xs font-semibold text-gray-200">Person Portrait Cutout</label>
-                        <label class="text-[11px] text-gray-400 flex items-center gap-1 cursor-pointer">
-                            <input type="checkbox" id="editModalShowCutout" checked class="rounded text-blue-500">
-                            <span>Show Cutout</span>
-                        </label>
+                    <!-- Tab Panel 1: Copy & Text -->
+                    <div id="canvaPanel_text" class="space-y-3 bg-gray-800/60 border border-gray-700/60 p-3.5 rounded-xl">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-xs font-semibold text-gray-300">Headline Text</label>
+                                <button type="button" onclick="wrapModalHighlight()" class="text-[10px] bg-indigo-900/70 hover:bg-indigo-800 text-indigo-300 px-2 py-0.5 rounded border border-indigo-700/50">
+                                    + Highlight Selection
+                                </button>
+                            </div>
+                            <textarea id="editModalText" rows="3" class="w-full bg-gray-900 border border-gray-700 rounded-md py-1.5 px-2.5 text-xs text-gray-100 focus:ring-2 focus:ring-blue-500" oninput="updateModalPreview()"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Subtext / Hook Note</label>
+                            <input type="text" id="editModalSubtext" class="w-full bg-gray-900 border border-gray-700 rounded-md py-1.5 px-2.5 text-xs text-gray-100" oninput="updateModalPreview()">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Channel Brand Logo Text</label>
+                            <input type="text" id="editModalChannelName" class="w-full bg-gray-900 border border-gray-700 rounded-md py-1.5 px-2.5 text-xs text-gray-100" placeholder="e.g. indian startups" oninput="updateModalPreview()">
+                        </div>
                     </div>
-                    <input type="text" id="editModalPersonName" placeholder="Person Name or URL (e.g. Samrat Choudhary or https://...)" class="w-full bg-gray-900 border border-gray-700 rounded py-1.5 px-2.5 text-xs text-gray-100">
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] text-gray-500">Or upload:</span>
-                        <input type="file" id="editModalCutoutFile" accept="image/*" class="text-[11px] text-gray-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-gray-700 file:text-gray-300">
+
+                    <!-- Tab Panel 2: Background Photo -->
+                    <div id="canvaPanel_bg" class="hidden space-y-3 bg-gray-800/60 border border-gray-700/60 p-3.5 rounded-xl">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Background Image Keyword OR Image URL</label>
+                            <input type="text" id="editModalImageEntity" class="w-full bg-gray-900 border border-gray-700 rounded-md py-1.5 px-2.5 text-xs text-gray-100" placeholder="e.g. Mumbai stock exchange OR https://..." oninput="updateModalPreview()">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Or Upload Custom Background</label>
+                            <input type="file" id="editModalFileInput" accept="image/*" class="w-full text-xs text-gray-400 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:bg-gray-700 file:text-gray-300 hover:file:bg-gray-600" onchange="handleModalBgUpload(this)">
+                        </div>
+                    </div>
+
+                    <!-- Tab Panel 3: Person Cutouts -->
+                    <div id="canvaPanel_cutouts" class="hidden space-y-3 bg-gray-800/60 border border-gray-700/60 p-3.5 rounded-xl">
+                        <div class="flex items-center justify-between border-b border-gray-700/60 pb-2">
+                            <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Person Cutout Layers</span>
+                            <button type="button" onclick="addCanvaCutout()" class="text-[11px] bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-2.5 py-1 rounded-md shadow transition flex items-center gap-1">
+                                <span>+ Add Person Cutout</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Cutout Layer Selector Tabs -->
+                        <div id="canvaCutoutLayersList" class="flex items-center gap-1.5 flex-wrap">
+                            <!-- Injected dynamically: [Cutout 1] [Cutout 2] -->
+                        </div>
+
+                        <!-- Active Cutout Controls -->
+                        <div id="canvaActiveCutoutControls" class="space-y-3 pt-1">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Tab Panel 4: Circular Badges -->
+                    <div id="canvaPanel_badges" class="hidden space-y-3 bg-gray-800/60 border border-gray-700/60 p-3.5 rounded-xl">
+                        <div class="flex items-center justify-between border-b border-gray-700/60 pb-2">
+                            <span class="text-xs font-bold text-blue-400 uppercase tracking-wider">Circular Badge Layers</span>
+                            <button type="button" onclick="addCanvaBadge()" class="text-[11px] bg-blue-600 hover:bg-blue-700 text-white font-semibold px-2.5 py-1 rounded-md shadow transition flex items-center gap-1">
+                                <span>+ Add Circular Badge</span>
+                            </button>
+                        </div>
+
+                        <!-- Badge Layer Selector Tabs -->
+                        <div id="canvaBadgeLayersList" class="flex items-center gap-1.5 flex-wrap">
+                            <!-- Injected dynamically: [Badge 1] [Badge 2] -->
+                        </div>
+
+                        <!-- Active Badge Controls -->
+                        <div id="canvaActiveBadgeControls" class="space-y-3 pt-1">
+                            <!-- Injected dynamically -->
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-2 pt-2 border-t border-gray-800">
-                <button type="button" onclick="closeEditModal()" class="text-xs text-gray-400 hover:text-white px-3 py-1.5 border border-gray-700 rounded-lg">Cancel</button>
-                <button type="button" id="saveSlideBtn" onclick="saveAndRerenderSlide()" class="text-xs bg-blue-600 hover:bg-blue-700 font-bold text-white px-4 py-1.5 rounded-lg shadow transition">
-                    Save & Re-render Slide
-                </button>
+            <!-- Modal Footer -->
+            <div class="flex items-center justify-between pt-3 border-t border-gray-800 flex-shrink-0">
+                <span id="canvaStatusText" class="text-xs text-gray-500">Ready to re-render</span>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeEditModal()" class="text-xs text-gray-400 hover:text-white px-3 py-1.5 border border-gray-700 rounded-lg hover:bg-gray-800 transition">Cancel</button>
+                    <button type="button" id="saveSlideBtn" onclick="saveAndRerenderSlide()" class="text-xs bg-blue-600 hover:bg-blue-700 font-bold text-white px-5 py-2 rounded-lg shadow-lg transition flex items-center gap-1.5">
+                        <span>🚀 Save & Re-render Slide</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -665,6 +753,14 @@
             }
         }
 
+        // Canva Editor State
+        let canvaActiveTab = 'text';
+        let canvaModalSlideIdx = 0;
+        let canvaModalCutouts = [];
+        let canvaModalBadges = [];
+        let canvaActiveCutoutIdx = 0;
+        let canvaActiveBadgeIdx = 0;
+
         // Display Gallery Results
         function showResults(data) {
             const resultsArea = document.getElementById('resultsArea');
@@ -683,6 +779,8 @@
                 const slideData = currentCopyData?.slides[idx] || {};
                 const currentEntity = slideData.imageUrl || slideData.imageEntity || "News";
                 const imgUrl = `/output/${slideFile}?t=${Date.now()}`;
+                const cutoutsCount = Array.isArray(slideData.cutouts) ? slideData.cutouts.length : (slideData.cutoutImagePath ? 1 : 0);
+                const badgesCount = Array.isArray(slideData.badges) ? slideData.badges.length : (slideData.circleImagePath ? 1 : 0);
 
                 const card = document.createElement('div');
                 card.id = `slideCard_${idx}`;
@@ -702,15 +800,21 @@
                     </div>
                     <div class="p-3 bg-gray-900 border-t border-gray-800 space-y-2 flex-1 flex flex-col justify-between">
                         <div>
-                            <span class="text-[10px] text-gray-500 uppercase tracking-wider block">Image Keyword</span>
+                            <div class="flex items-center justify-between gap-1 mb-1">
+                                <span class="text-[10px] text-gray-500 uppercase tracking-wider block">Keyword</span>
+                                <div class="flex items-center gap-1 flex-wrap">
+                                    ${cutoutsCount > 0 ? `<span class="bg-indigo-900/60 text-indigo-300 text-[10px] px-1.5 py-0.2 rounded border border-indigo-700/40">👤 ${cutoutsCount}</span>` : ''}
+                                    ${badgesCount > 0 ? `<span class="bg-blue-900/60 text-blue-300 text-[10px] px-1.5 py-0.2 rounded border border-blue-700/40">🔘 ${badgesCount}</span>` : ''}
+                                </div>
+                            </div>
                             <span id="keywordBadge_${idx}" class="text-xs font-semibold text-blue-400 truncate block">${currentEntity}</span>
                         </div>
                         <div class="grid grid-cols-2 gap-1.5 pt-2 border-t border-gray-800/80">
                             <button onclick="retrySlideImage(${idx})" id="retryBtn_${idx}" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-[11px] py-1.5 px-2 rounded border border-gray-700 transition flex items-center justify-center gap-1">
-                                <span>🔄 Retry Photo</span>
+                                <span>🔄 Retry</span>
                             </button>
-                            <button onclick="openEditModal(${idx})" class="bg-blue-900/40 hover:bg-blue-800 text-blue-300 text-[11px] py-1.5 px-2 rounded border border-blue-700/40 transition flex items-center justify-center gap-1">
-                                <span>✏ Edit Slide</span>
+                            <button onclick="openEditModal(${idx})" class="bg-indigo-900/50 hover:bg-indigo-800 text-indigo-200 text-[11px] py-1.5 px-2 rounded border border-indigo-700/50 transition flex items-center justify-center gap-1 font-semibold">
+                                <span>🎨 Edit Visual</span>
                             </button>
                         </div>
                     </div>
@@ -755,37 +859,49 @@
             } finally {
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerHTML = '<span>🔄 Retry Photo</span>';
+                    btn.innerHTML = '<span>🔄 Retry</span>';
                 }
             }
         }
 
-        // Edit Single Slide Modal Controls
+        // Canva Visual Editor Modal Controls
         function openEditModal(idx) {
             const slide = currentCopyData?.slides[idx];
             if (!slide) return;
 
+            canvaModalSlideIdx = idx;
             document.getElementById('editModalSlideIndex').value = idx;
-            document.getElementById('editModalTitle').textContent = `Edit Slide ${idx + 1}`;
+            document.getElementById('editModalTitle').textContent = `Edit Slide ${idx + 1} of ${currentCopyData.slides.length}`;
             document.getElementById('editModalText').value = slide.text || '';
             document.getElementById('editModalSubtext').value = slide.subtext || '';
+            document.getElementById('editModalChannelName').value = slide.channelName || document.getElementById('channelName').value || '1affairs';
             document.getElementById('editModalImageEntity').value = slide.imageUrl || slide.imageEntity || '';
             document.getElementById('editModalFileInput').value = '';
 
-            // Slide 1 Hero Addons Section
-            const addonsSec = document.getElementById('editModalSlide1Addons');
-            if (idx === 0) {
-                addonsSec.classList.remove('hidden');
-                document.getElementById('editModalShowCircle').checked = slide.removeCircle !== true;
-                document.getElementById('editModalCircleKeyword').value = slide.circleImageUrl || slide.circleImageKeyword || currentCopyData?.circleImageKeyword || '';
-                document.getElementById('editModalCircleFile').value = '';
-
-                document.getElementById('editModalShowCutout').checked = slide.removeCutout !== true;
-                document.getElementById('editModalPersonName').value = slide.cutoutImageUrl || slide.personName || currentCopyData?.personName || '';
-                document.getElementById('editModalCutoutFile').value = '';
+            // Clone or initialize cutouts
+            if (Array.isArray(slide.cutouts) && slide.cutouts.length > 0) {
+                canvaModalCutouts = JSON.parse(JSON.stringify(slide.cutouts));
+            } else if (slide.cutoutImagePath) {
+                canvaModalCutouts = [{ image: slide.cutoutImagePath, x: 75, y: 0, scale: 100, flip: false }];
             } else {
-                addonsSec.classList.add('hidden');
+                canvaModalCutouts = [];
             }
+
+            // Clone or initialize badges
+            if (Array.isArray(slide.badges) && slide.badges.length > 0) {
+                canvaModalBadges = JSON.parse(JSON.stringify(slide.badges));
+            } else if (slide.circleImagePath) {
+                canvaModalBadges = [{ image: slide.circleImagePath, x: 14, y: 20, scale: 100, showArrow: true }];
+            } else {
+                canvaModalBadges = [];
+            }
+
+            canvaActiveCutoutIdx = 0;
+            canvaActiveBadgeIdx = 0;
+            switchCanvaTab('text');
+            renderCanvaCutoutControls();
+            renderCanvaBadgeControls();
+            updateModalPreview();
 
             document.getElementById('editSlideModal').classList.remove('hidden');
         }
@@ -794,119 +910,528 @@
             document.getElementById('editSlideModal').classList.add('hidden');
         }
 
+        function switchCanvaTab(tab) {
+            canvaActiveTab = tab;
+            ['text', 'bg', 'cutouts', 'badges'].forEach(t => {
+                const btn = document.getElementById(`canvaTab_${t}`);
+                const panel = document.getElementById(`canvaPanel_${t}`);
+                if (t === tab) {
+                    btn.className = 'py-1.5 px-2 rounded-md transition bg-blue-600 text-white shadow font-semibold';
+                    panel.classList.remove('hidden');
+                } else {
+                    btn.className = 'py-1.5 px-2 rounded-md transition text-gray-400 hover:text-white';
+                    panel.classList.add('hidden');
+                }
+            });
+            updateModalPreview();
+        }
+
+        function updateModalPreview() {
+            const channel = document.getElementById('editModalChannelName').value.trim() || '1affairs';
+            const text = document.getElementById('editModalText').value;
+            const subtext = document.getElementById('editModalSubtext').value;
+            const bgEntity = document.getElementById('editModalImageEntity').value.trim();
+
+            // Brand logo
+            const brandEl = document.getElementById('canvaBrandName');
+            if (brandEl) brandEl.textContent = channel.toLowerCase();
+
+            // Headline & subtext
+            const headlineEl = document.getElementById('canvaHeadline');
+            if (headlineEl) headlineEl.innerHTML = text || 'Enter headline...';
+            const subtextEl = document.getElementById('canvaSubtext');
+            if (subtextEl) subtextEl.textContent = subtext || '';
+
+            // Background photo
+            const bgLayer = document.getElementById('canvaBgLayer');
+            if (bgLayer) {
+                if (bgEntity.startsWith('http') || bgEntity.startsWith('data:') || bgEntity.startsWith('/output') || bgEntity.startsWith('file:///')) {
+                    bgLayer.style.backgroundImage = `url('${bgEntity}')`;
+                } else {
+                    bgLayer.style.backgroundImage = `linear-gradient(135deg, #0a1128 0%, #1c2541 50%, #3a506b 100%)`;
+                }
+            }
+
+            const hasAddons = canvaModalCutouts.length > 0 || canvaModalBadges.length > 0;
+            const canvasEl = document.getElementById('canvaCanvas');
+            const dottedBg = document.getElementById('canvaDottedBg');
+            const sceneContainer = document.getElementById('canvaSceneContainer');
+            const sceneFade = document.getElementById('canvaSceneFade');
+
+            if (!hasAddons) {
+                // Full bleed cinematic preview
+                if (canvasEl) canvasEl.style.backgroundColor = '#0b0f19';
+                if (dottedBg) dottedBg.style.display = 'none';
+                if (sceneContainer) {
+                    sceneContainer.style.top = '0';
+                    sceneContainer.style.zIndex = '0';
+                }
+                if (sceneFade) sceneFade.style.display = 'none';
+                if (headlineEl) headlineEl.style.color = '#ffffff';
+                if (subtextEl) subtextEl.style.color = '#e2e8f0';
+                if (brandEl) brandEl.style.color = '#ffffff';
+            } else {
+                // Split scene preview with top white dots
+                if (canvasEl) canvasEl.style.backgroundColor = '#ffffff';
+                if (dottedBg) dottedBg.style.display = 'block';
+                if (sceneContainer) {
+                    sceneContainer.style.top = '35%';
+                    sceneContainer.style.zIndex = '0';
+                }
+                if (sceneFade) sceneFade.style.display = 'block';
+                if (headlineEl) headlineEl.style.color = '#0a0a0a';
+                if (subtextEl) subtextEl.style.color = '#1e293b';
+                if (brandEl) brandEl.style.color = '#0d0d0d';
+            }
+
+            // Render Cutouts in canvas
+            const cutoutsCont = document.getElementById('canvaCutoutsContainer');
+            if (cutoutsCont) {
+                cutoutsCont.innerHTML = canvaModalCutouts.map((c, i) => {
+                    const x = c.x !== undefined ? Number(c.x) : 75;
+                    const y = c.y !== undefined ? Number(c.y) : 0;
+                    const scale = (c.scale !== undefined ? Number(c.scale) : 100) / 100;
+                    const flip = c.flip ? -1 : 1;
+                    const isSelected = canvaActiveTab === 'cutouts' && canvaActiveCutoutIdx === i;
+
+                    return `
+                    <div style="
+                        position: absolute;
+                        left: ${x}%;
+                        bottom: ${y}%;
+                        transform: translate(-50%, 0) scale(${scale});
+                        transform-origin: bottom center;
+                        height: 100%;
+                        display: flex;
+                        align-items: flex-end;
+                        justify-content: center;
+                        pointer-events: auto;
+                        cursor: pointer;
+                        ${isSelected ? 'outline: 2px dashed #6366f1; outline-offset: 3px;' : ''}
+                    " onclick="selectCanvaCutout(${i})">
+                        <img src="${c.image || 'https://via.placeholder.com/300x400?text=Person'}" style="
+                            height: 96%;
+                            max-width: 220px;
+                            object-fit: contain;
+                            object-position: bottom center;
+                            transform: scaleX(${flip});
+                            filter: drop-shadow(-4px 8px 16px rgba(0,0,0,0.5));
+                        ">
+                    </div>
+                    `;
+                }).join('');
+            }
+
+            // Render Badges in canvas
+            const badgesCont = document.getElementById('canvaBadgesContainer');
+            if (badgesCont) {
+                badgesCont.innerHTML = canvaModalBadges.map((b, i) => {
+                    const x = b.x !== undefined ? Number(b.x) : 14;
+                    const y = b.y !== undefined ? Number(b.y) : 20;
+                    const scale = (b.scale !== undefined ? Number(b.scale) : 100) / 100;
+                    const size = Math.round(90 * scale);
+                    const showArrow = b.showArrow !== false;
+                    const arrowOnRight = x < 50;
+                    const isSelected = canvaActiveTab === 'badges' && canvaActiveBadgeIdx === i;
+
+                    return `
+                    <div style="
+                        position: absolute;
+                        left: ${x}%;
+                        top: ${y}%;
+                        transform: translate(-50%, -50%);
+                        pointer-events: auto;
+                        cursor: pointer;
+                        ${isSelected ? 'outline: 2px dashed #3b82f6; outline-offset: 3px; border-radius: 50%;' : ''}
+                    " onclick="selectCanvaBadge(${i})">
+                        <div style="
+                            width: ${size}px;
+                            height: ${size}px;
+                            border-radius: 50%;
+                            border: 3px solid #ffffff;
+                            background: url('${b.image || 'https://via.placeholder.com/200?text=Badge'}') center/cover no-repeat;
+                            box-shadow: 0 6px 16px rgba(0,0,0,0.45);
+                            position: relative;
+                        ">
+                            ${showArrow ? `
+                            <svg viewBox="0 0 100 100" fill="none" style="
+                                position: absolute;
+                                ${arrowOnRight ? 'top: -20px; right: -25px; transform: rotate(10deg);' : 'top: -20px; left: -25px; transform: scaleX(-1) rotate(10deg);'}
+                                width: 38px;
+                                height: 38px;
+                                filter: drop-shadow(0 2px 6px rgba(43,62,242,0.5));
+                                pointer-events: none;
+                            ">
+                                <path d="M15 80 C 25 30, 65 20, 85 45" stroke="#2b3ef2" stroke-width="8" stroke-linecap="round"/>
+                                <polygon points="75,25 95,50 65,55" fill="#2b3ef2"/>
+                            </svg>
+                            ` : ''}
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function renderCanvaCutoutControls() {
+            const list = document.getElementById('canvaCutoutLayersList');
+            const controls = document.getElementById('canvaActiveCutoutControls');
+            if (!list || !controls) return;
+
+            if (canvaModalCutouts.length === 0) {
+                list.innerHTML = '<span class="text-[11px] text-gray-400 italic">No person cutouts on this slide. Click "+ Add Person Cutout" to add one!</span>';
+                controls.innerHTML = '';
+                return;
+            }
+
+            list.innerHTML = canvaModalCutouts.map((c, i) => `
+                <button type="button" onclick="selectCanvaCutout(${i})" class="text-xs px-2.5 py-1 rounded-md transition font-semibold ${canvaActiveCutoutIdx === i ? 'bg-indigo-600 text-white shadow' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}">
+                    Cutout ${i + 1}
+                </button>
+            `).join('');
+
+            const c = canvaModalCutouts[canvaActiveCutoutIdx] || canvaModalCutouts[0];
+            if (!c) return;
+
+            controls.innerHTML = `
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-gray-300 mb-1">Person Name / Query OR Direct Image URL</label>
+                        <input type="text" value="${c.image && !c.image.startsWith('data:') ? c.image : ''}" placeholder="e.g. Narendra Modi OR https://..." class="w-full bg-gray-900 border border-gray-700 rounded py-1.5 px-2.5 text-xs text-gray-100" onchange="setCutoutProp('image', this.value)">
+                        <div class="flex items-center gap-2 mt-1.5">
+                            <span class="text-[10px] text-gray-400">Or upload:</span>
+                            <input type="file" accept="image/*" class="text-[10px] text-gray-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-gray-700 file:text-gray-300" onchange="handleModalCutoutUpload(this, ${canvaActiveCutoutIdx})">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                            <div class="flex justify-between text-[11px] text-gray-300 mb-1">
+                                <span>Position X (Left ↔ Right)</span>
+                                <span class="text-indigo-400 font-mono">${c.x || 75}%</span>
+                            </div>
+                            <input type="range" min="0" max="100" value="${c.x !== undefined ? c.x : 75}" class="w-full accent-indigo-500" oninput="setCutoutProp('x', this.value)">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-gray-300 mb-1">
+                                <span>Position Y (Bottom ↑ Up)</span>
+                                <span class="text-indigo-400 font-mono">${c.y || 0}%</span>
+                            </div>
+                            <input type="range" min="0" max="50" value="${c.y !== undefined ? c.y : 0}" class="w-full accent-indigo-500" oninput="setCutoutProp('y', this.value)">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 items-center pt-1">
+                        <div>
+                            <div class="flex justify-between text-[11px] text-gray-300 mb-1">
+                                <span>Size / Scale</span>
+                                <span class="text-indigo-400 font-mono">${c.scale || 100}%</span>
+                            </div>
+                            <input type="range" min="40" max="170" value="${c.scale !== undefined ? c.scale : 100}" class="w-full accent-indigo-500" oninput="setCutoutProp('scale', this.value)">
+                        </div>
+                        <div class="flex items-center gap-2 pt-3">
+                            <button type="button" onclick="toggleCutoutFlip(${canvaActiveCutoutIdx})" class="flex-1 text-xs py-1.5 px-2.5 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-gray-200 transition font-semibold text-center">
+                                ⇄ Flip Direction
+                            </button>
+                            <button type="button" onclick="removeCanvaCutout(${canvaActiveCutoutIdx})" class="text-xs py-1.5 px-2.5 rounded border border-red-700/50 bg-red-950/60 hover:bg-red-900 text-red-300 transition">
+                                🗑 Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCanvaBadgeControls() {
+            const list = document.getElementById('canvaBadgeLayersList');
+            const controls = document.getElementById('canvaActiveBadgeControls');
+            if (!list || !controls) return;
+
+            if (canvaModalBadges.length === 0) {
+                list.innerHTML = '<span class="text-[11px] text-gray-400 italic">No circular badges on this slide. Click "+ Add Circular Badge" to add one!</span>';
+                controls.innerHTML = '';
+                return;
+            }
+
+            list.innerHTML = canvaModalBadges.map((b, i) => `
+                <button type="button" onclick="selectCanvaBadge(${i})" class="text-xs px-2.5 py-1 rounded-md transition font-semibold ${canvaActiveBadgeIdx === i ? 'bg-blue-600 text-white shadow' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}">
+                    Badge ${i + 1}
+                </button>
+            `).join('');
+
+            const b = canvaModalBadges[canvaActiveBadgeIdx] || canvaModalBadges[0];
+            if (!b) return;
+
+            controls.innerHTML = `
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-gray-300 mb-1">Badge Image Keyword OR Image URL</label>
+                        <input type="text" value="${b.image && !b.image.startsWith('data:') ? b.image : ''}" placeholder="e.g. Zerodha logo OR https://..." class="w-full bg-gray-900 border border-gray-700 rounded py-1.5 px-2.5 text-xs text-gray-100" onchange="setBadgeProp('image', this.value)">
+                        <div class="flex items-center gap-2 mt-1.5">
+                            <span class="text-[10px] text-gray-400">Or upload:</span>
+                            <input type="file" accept="image/*" class="text-[10px] text-gray-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-gray-700 file:text-gray-300" onchange="handleModalBadgeUpload(this, ${canvaActiveBadgeIdx})">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                            <div class="flex justify-between text-[11px] text-gray-300 mb-1">
+                                <span>Position X (Left ↔ Right)</span>
+                                <span class="text-blue-400 font-mono">${b.x || 14}%</span>
+                            </div>
+                            <input type="range" min="5" max="95" value="${b.x !== undefined ? b.x : 14}" class="w-full accent-blue-500" oninput="setBadgeProp('x', this.value)">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-gray-300 mb-1">
+                                <span>Position Y (Top ↕ Down)</span>
+                                <span class="text-blue-400 font-mono">${b.y || 20}%</span>
+                            </div>
+                            <input type="range" min="5" max="90" value="${b.y !== undefined ? b.y : 20}" class="w-full accent-blue-500" oninput="setBadgeProp('y', this.value)">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 items-center pt-1">
+                        <div>
+                            <div class="flex justify-between text-[11px] text-gray-300 mb-1">
+                                <span>Size</span>
+                                <span class="text-blue-400 font-mono">${b.scale || 100}%</span>
+                            </div>
+                            <input type="range" min="50" max="160" value="${b.scale !== undefined ? b.scale : 100}" class="w-full accent-blue-500" oninput="setBadgeProp('scale', this.value)">
+                        </div>
+                        <div class="flex items-center justify-between gap-2 pt-3">
+                            <label class="text-[11px] text-gray-300 flex items-center gap-1.5 cursor-pointer select-none">
+                                <input type="checkbox" ${b.showArrow !== false ? 'checked' : ''} onchange="setBadgeProp('showArrow', this.checked)" class="rounded text-blue-500">
+                                <span>Curved Arrow ⤹</span>
+                            </label>
+                            <button type="button" onclick="removeCanvaBadge(${canvaActiveBadgeIdx})" class="text-xs py-1.5 px-2.5 rounded border border-red-700/50 bg-red-950/60 hover:bg-red-900 text-red-300 transition">
+                                🗑 Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectCanvaCutout(idx) {
+            canvaActiveCutoutIdx = idx;
+            switchCanvaTab('cutouts');
+            renderCanvaCutoutControls();
+            updateModalPreview();
+        }
+
+        function selectCanvaBadge(idx) {
+            canvaActiveBadgeIdx = idx;
+            switchCanvaTab('badges');
+            renderCanvaBadgeControls();
+            updateModalPreview();
+        }
+
+        function setCutoutProp(prop, val) {
+            if (canvaModalCutouts[canvaActiveCutoutIdx]) {
+                canvaModalCutouts[canvaActiveCutoutIdx][prop] = val;
+                renderCanvaCutoutControls();
+                updateModalPreview();
+            }
+        }
+
+        function setBadgeProp(prop, val) {
+            if (canvaModalBadges[canvaActiveBadgeIdx]) {
+                canvaModalBadges[canvaActiveBadgeIdx][prop] = val;
+                renderCanvaBadgeControls();
+                updateModalPreview();
+            }
+        }
+
+        function toggleCutoutFlip(idx) {
+            if (canvaModalCutouts[idx]) {
+                canvaModalCutouts[idx].flip = !canvaModalCutouts[idx].flip;
+                renderCanvaCutoutControls();
+                updateModalPreview();
+            }
+        }
+
+        function addCanvaCutout() {
+            canvaModalCutouts.push({
+                image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500',
+                x: canvaModalCutouts.length === 0 ? 75 : 25,
+                y: 0,
+                scale: 100,
+                flip: canvaModalCutouts.length > 0
+            });
+            canvaActiveCutoutIdx = canvaModalCutouts.length - 1;
+            switchCanvaTab('cutouts');
+            renderCanvaCutoutControls();
+            updateModalPreview();
+        }
+
+        function removeCanvaCutout(idx) {
+            canvaModalCutouts.splice(idx, 1);
+            canvaActiveCutoutIdx = Math.max(0, canvaModalCutouts.length - 1);
+            renderCanvaCutoutControls();
+            updateModalPreview();
+        }
+
+        function addCanvaBadge() {
+            canvaModalBadges.push({
+                image: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=500',
+                x: canvaModalBadges.length === 0 ? 14 : 82,
+                y: 18,
+                scale: 100,
+                showArrow: true
+            });
+            canvaActiveBadgeIdx = canvaModalBadges.length - 1;
+            switchCanvaTab('badges');
+            renderCanvaBadgeControls();
+            updateModalPreview();
+        }
+
+        function removeCanvaBadge(idx) {
+            canvaModalBadges.splice(idx, 1);
+            canvaActiveBadgeIdx = Math.max(0, canvaModalBadges.length - 1);
+            renderCanvaBadgeControls();
+            updateModalPreview();
+        }
+
+        function handleModalCutoutUpload(input, idx) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    try {
+                        const res = await fetch('/api/upload-image', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                slideIndex: canvaModalSlideIdx,
+                                addonIndex: idx,
+                                imageData: reader.result,
+                                target: 'cutout'
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success && canvaModalCutouts[idx]) {
+                            canvaModalCutouts[idx].image = data.localPath;
+                            renderCanvaCutoutControls();
+                            updateModalPreview();
+                        }
+                    } catch (err) {
+                        alert('Upload failed: ' + err.message);
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function handleModalBadgeUpload(input, idx) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    try {
+                        const res = await fetch('/api/upload-image', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                slideIndex: canvaModalSlideIdx,
+                                addonIndex: idx,
+                                imageData: reader.result,
+                                target: 'circle'
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success && canvaModalBadges[idx]) {
+                            canvaModalBadges[idx].image = data.localPath;
+                            renderCanvaBadgeControls();
+                            updateModalPreview();
+                        }
+                    } catch (err) {
+                        alert('Upload failed: ' + err.message);
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function handleModalBgUpload(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    try {
+                        const res = await fetch('/api/upload-image', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                slideIndex: canvaModalSlideIdx,
+                                imageData: reader.result,
+                                target: 'background'
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            document.getElementById('editModalImageEntity').value = data.localPath;
+                            updateModalPreview();
+                        }
+                    } catch (err) {
+                        alert('Upload failed: ' + err.message);
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function wrapModalHighlight() {
+            const textarea = document.getElementById('editModalText');
+            if (!textarea) return;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const selectedText = textarea.value.substring(start, end);
+            if (selectedText.trim().length > 0) {
+                const replacement = `<span class='highlight'>${selectedText}</span>`;
+                textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+                updateModalPreview();
+            }
+        }
+
         async function saveAndRerenderSlide() {
-            const idx = parseInt(document.getElementById('editModalSlideIndex').value);
+            const idx = canvaModalSlideIdx;
             const slide = currentCopyData?.slides[idx];
             if (!slide) return;
 
             const saveBtn = document.getElementById('saveSlideBtn');
             saveBtn.disabled = true;
-            saveBtn.textContent = 'Saving...';
+            saveBtn.innerHTML = '<span>⏳ Re-rendering...</span>';
+
+            const newChannel = document.getElementById('editModalChannelName').value.trim() || '1affairs';
+            document.getElementById('channelName').value = newChannel; // Sync global brand
 
             slide.text = document.getElementById('editModalText').value;
             slide.subtext = document.getElementById('editModalSubtext').value;
+            slide.channelName = newChannel;
 
-            const uploadFile = (file, target) => {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = async () => {
-                        try {
-                            const res = await fetch('/api/upload-image', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ slideIndex: idx, imageData: reader.result, target: target })
-                            });
-                            const data = await res.json();
-                            resolve(data);
-                        } catch (e) {
-                            reject(e);
-                        }
-                    };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
-            };
-
-            try {
-                // 1. Handle background image
-                const fileInput = document.getElementById('editModalFileInput');
-                if (fileInput.files && fileInput.files[0]) {
-                    saveBtn.textContent = 'Uploading photo...';
-                    const uploadData = await uploadFile(fileInput.files[0], 'background');
-                    if (uploadData.success) {
-                        slide.imageUrl = uploadData.localPath;
-                        slide.imageEntity = "Custom Photo";
-                    }
-                } else {
-                    const imgEntityVal = document.getElementById('editModalImageEntity').value.trim();
-                    if (imgEntityVal.startsWith('http://') || imgEntityVal.startsWith('https://')) {
-                        slide.imageUrl = imgEntityVal;
-                    } else if (imgEntityVal) {
-                        slide.imageEntity = imgEntityVal;
-                        slide.imageUrl = "";
-                    }
-                }
-
-                // 2. Handle Slide 1 Hero Addons
-                if (idx === 0) {
-                    // Circular badge
-                    const showCircle = document.getElementById('editModalShowCircle').checked;
-                    slide.removeCircle = !showCircle;
-                    const circleFileInput = document.getElementById('editModalCircleFile');
-                    if (circleFileInput.files && circleFileInput.files[0]) {
-                        saveBtn.textContent = 'Uploading badge...';
-                        const circleUpload = await uploadFile(circleFileInput.files[0], 'circle');
-                        if (circleUpload.success) {
-                            slide.circleImageUrl = circleUpload.localPath;
-                            slide.circleImageKeyword = "";
-                            slide.removeCircle = false;
-                        }
-                    } else {
-                        const circleVal = document.getElementById('editModalCircleKeyword').value.trim();
-                        if (circleVal.startsWith('http://') || circleVal.startsWith('https://')) {
-                            slide.circleImageUrl = circleVal;
-                            slide.circleImageKeyword = "";
-                        } else if (circleVal) {
-                            slide.circleImageKeyword = circleVal;
-                            slide.circleImageUrl = "";
-                        }
-                    }
-
-                    // Person Cutout
-                    const showCutout = document.getElementById('editModalShowCutout').checked;
-                    slide.removeCutout = !showCutout;
-                    const cutoutFileInput = document.getElementById('editModalCutoutFile');
-                    if (cutoutFileInput.files && cutoutFileInput.files[0]) {
-                        saveBtn.textContent = 'Processing cutout...';
-                        const cutoutUpload = await uploadFile(cutoutFileInput.files[0], 'cutout');
-                        if (cutoutUpload.success) {
-                            slide.cutoutImageUrl = cutoutUpload.localPath;
-                            slide.personName = "";
-                            slide.removeCutout = false;
-                        }
-                    } else {
-                        const personVal = document.getElementById('editModalPersonName').value.trim();
-                        if (personVal.startsWith('http://') || personVal.startsWith('https://')) {
-                            slide.cutoutImageUrl = personVal;
-                            slide.personName = "";
-                        } else if (personVal) {
-                            slide.personName = personVal;
-                            slide.cutoutImageUrl = "";
-                        }
-                    }
-                }
-
-                saveBtn.textContent = 'Rendering...';
-                await executeSlideRerender(idx, slide, saveBtn);
-            } catch (err) {
-                log(`Failed to save/render slide: ${err.message}`, 'text-red-400');
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Save & Re-render Slide';
+            const bgEntityVal = document.getElementById('editModalImageEntity').value.trim();
+            if (bgEntityVal.startsWith('http://') || bgEntityVal.startsWith('https://') || bgEntityVal.startsWith('file:///') || bgEntityVal.includes('\\') || bgEntityVal.includes('/')) {
+                slide.imageUrl = bgEntityVal;
+            } else if (bgEntityVal) {
+                slide.imageEntity = bgEntityVal;
+                slide.imageUrl = "";
             }
-        }
 
-        async function executeSlideRerender(idx, slide, saveBtn) {
-            log(`Re-rendering Slide ${idx + 1} with updated text/image...`, 'text-blue-400');
+            slide.cutouts = canvaModalCutouts;
+            slide.badges = canvaModalBadges;
+            if (canvaModalCutouts.length > 0) {
+                slide.cutoutImagePath = canvaModalCutouts[0].image;
+                slide.removeCutout = false;
+            } else {
+                slide.cutoutImagePath = "";
+                slide.removeCutout = true;
+            }
+            if (canvaModalBadges.length > 0) {
+                slide.circleImagePath = canvaModalBadges[0].image;
+                slide.removeCircle = false;
+            } else {
+                slide.circleImagePath = "";
+                slide.removeCircle = true;
+            }
+
+            log(`Re-rendering Slide ${idx + 1} with Canva visual layout...`, 'text-blue-400');
             try {
                 const res = await fetch('/api/regenerate-slide', {
                     method: 'POST',
@@ -914,17 +1439,18 @@
                     body: JSON.stringify({
                         slideIndex: idx,
                         slideData: slide,
-                        channelName: document.getElementById('channelName').value
+                        channelName: newChannel
                     })
                 });
                 const data = await res.json();
                 if (!data.success) throw new Error(data.error);
 
-                // Update gallery
+                // Update gallery card image
                 const img = document.getElementById(`slideImg_${idx}`);
                 if (img) img.src = `/output/${data.slideFile}?t=${Date.now()}`;
-                const badge = document.getElementById(`keywordBadge_${idx}`);
-                if (badge) badge.textContent = slide.imageUrl ? 'Custom URL/Upload' : slide.imageEntity;
+                
+                // Re-render gallery card badges
+                showResults({ slides: generatedSlideFiles, caption: currentCopyData.caption });
 
                 log(`Slide ${idx + 1} re-rendered successfully!`, 'text-green-400');
                 closeEditModal();
@@ -932,7 +1458,7 @@
                 log(`Error: ${err.message}`, 'text-red-400');
             } finally {
                 saveBtn.disabled = false;
-                saveBtn.textContent = 'Save & Re-render Slide';
+                saveBtn.innerHTML = '<span>🚀 Save & Re-render Slide</span>';
             }
         }
 

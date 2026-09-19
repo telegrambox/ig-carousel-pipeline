@@ -1,28 +1,58 @@
 /**
-* Builds the HTML for one carousel slide with a premium, furnished aesthetic matching 1affairs style.
-*
-* data = {
-*   text: "He came to Mumbai at just 17... <span class='highlight'>Today, Ravi Kishan lives in a ₹20 crore house.</span>",
-*   subtext: "Money follows my brotherrr | SWIPE",
-*   bgImagePath: "file:///abs/path/to/background.jpg",
-*   cutoutImagePath: "file:///abs/path/to/person_cutout.png",
-*   circleImagePath: "file:///abs/path/to/secondary.jpg",
-*   fullBleed: false
-* }
-*/
+ * Builds the HTML for one carousel slide with a premium, furnished aesthetic.
+ * Matches Indian Startups / 1affairs style with dynamic channel branding,
+ * multiple cutout people (with position X/Y, scale, flip), multiple circular badges (with arrows),
+ * and high-impact typography.
+ */
+
+function formatBrandLogo(channelName, isFullBleed) {
+  const brand = (channelName || '1affairs').trim();
+  const textColor = isFullBleed ? '#ffffff' : '#0d0d0d';
+
+  if (brand.toLowerCase() === '1affairs') {
+    return `<span class="one" style="font-size:36px;font-weight:900;color:#2b3ef2;margin-right:2px;">1</span><span class="affairs" style="text-decoration:underline;text-decoration-color:#2b3ef2;text-underline-offset:5px;text-decoration-thickness:3.5px;">affairs</span>`;
+  }
+
+  const words = brand.split(/\s+/);
+  if (words.length > 1) {
+    return `
+      <div style="display:flex; flex-direction:column; align-items:center; line-height: 1; text-align: center;">
+        <span style="font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: ${textColor}; text-transform: lowercase;">${words[0]}</span>
+        <span style="font-size: 17px; font-weight: 700; letter-spacing: 0.5px; color: ${textColor}; opacity: 0.85; text-transform: lowercase;">${words.slice(1).join(' ')}</span>
+      </div>
+    `;
+  }
+
+  return `<span style="font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: ${textColor}; text-transform: lowercase;">${brand}</span>`;
+}
+
 function buildSlideHTML(data) {
   const {
     text = "",
     subtext = "",
     paragraph = "",
+    channelName = "1affairs",
     bgImagePath = "",
     cutoutImagePath = "",
     circleImagePath = "",
+    cutouts = [],
+    badges = [],
     fullBleed = false,
     bgGradient = "linear-gradient(135deg, #0a1128 0%, #1c2541 50%, #3a506b 100%)",
   } = data;
 
-  const isFullBleed = fullBleed || (!cutoutImagePath && !circleImagePath);
+  // Normalize multiple cutouts with backward compatibility
+  let allCutouts = Array.isArray(cutouts) && cutouts.length > 0 
+    ? cutouts.filter(c => c && c.image)
+    : (cutoutImagePath ? [{ image: cutoutImagePath, x: 75, y: 0, scale: 100, flip: false }] : []);
+
+  // Normalize multiple badges with backward compatibility
+  let allBadges = Array.isArray(badges) && badges.length > 0
+    ? badges.filter(b => b && b.image)
+    : (circleImagePath ? [{ image: circleImagePath, x: 14, y: 22, scale: 100, showArrow: true }] : []);
+
+  const hasAddons = allCutouts.length > 0 || allBadges.length > 0;
+  const isFullBleed = fullBleed || !hasAddons;
 
   return `
   <!DOCTYPE html>
@@ -62,24 +92,8 @@ function buildSlideHTML(data) {
       z-index: 30;
     }
     .logo-brand {
-      font-size: 32px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      color: ${isFullBleed ? '#ffffff' : '#0d0d0d'};
       display: flex;
       align-items: center;
-    }
-    .logo-brand span.one {
-      font-size: 36px;
-      font-weight: 900;
-      color: #2b3ef2;
-      margin-right: 2px;
-    }
-    .logo-brand span.affairs {
-      text-decoration: underline;
-      text-decoration-color: #2b3ef2;
-      text-underline-offset: 5px;
-      text-decoration-thickness: 3.5px;
     }
     .logo-arrow {
       width: 36px;
@@ -89,7 +103,7 @@ function buildSlideHTML(data) {
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-left: 4px;
+      margin-left: 6px;
     }
     .logo-arrow svg {
       width: 18px;
@@ -105,14 +119,14 @@ function buildSlideHTML(data) {
     }
     
     .headline {
-      font-size: 68px;
+      font-size: 66px;
       font-weight: 800;
       line-height: 1.25;
       color: ${isFullBleed ? '#ffffff' : '#0a0a0a'};
       letter-spacing: -1.8px;
     }
     
-    /* Premium Blue/Purple Highlight Box */
+    /* Signature Indigo/Purple Highlight Box */
     .highlight {
       background-color: #2b3ef2;
       color: #ffffff;
@@ -123,7 +137,7 @@ function buildSlideHTML(data) {
       display: inline;
     }
 
-    /* ENLARGED SUBTEXT */
+    /* Subtext */
     .subtext {
       margin-top: 25px;
       font-family: 'Plus Jakarta Sans', sans-serif;
@@ -146,7 +160,7 @@ function buildSlideHTML(data) {
       display: ${paragraph ? 'block' : 'none'};
     }
 
-    /* --- SCENE CONTAINER FOR HERO (SPLIT) MODE --- */
+    /* --- SCENE CONTAINER FOR HERO / SPLIT MODE --- */
     .scene-container {
       position: absolute;
       top: 36%;
@@ -186,57 +200,6 @@ function buildSlideHTML(data) {
       pointer-events: none;
     }
 
-    /* Circular Inset Badge with Crisp White Border */
-    .circle-badge-container {
-      position: absolute;
-      left: 55px;
-      top: 14%;
-      z-index: 15;
-      display: ${circleImagePath ? 'block' : 'none'};
-    }
-    .circle-badge {
-      width: 340px;
-      height: 340px;
-      border-radius: 50%;
-      border: 8px solid #ffffff;
-      background: url('${circleImagePath}') center/cover no-repeat;
-      box-shadow: 0 22px 50px rgba(0, 0, 0, 0.42);
-      position: relative;
-    }
-    
-    /* Curved Directional Arrow */
-    .curved-arrow {
-      position: absolute;
-      top: -60px;
-      right: -80px;
-      width: 125px;
-      height: 125px;
-      z-index: 20;
-      transform: rotate(6deg);
-      filter: drop-shadow(0 4px 12px rgba(43, 62, 242, 0.5));
-    }
-
-    /* Foreground Cutout Person - BLEED TO EDGES (NO CUTOFF EDGES) */
-    .cutout-container {
-      position: absolute;
-      bottom: 0;
-      right: -25px; /* Bleed off the right edge so cut arm is hidden */
-      width: ${circleImagePath ? '720px' : '850px'};
-      height: 100%;
-      display: flex;
-      justify-content: flex-end;
-      align-items: flex-end;
-      z-index: 10;
-      pointer-events: none;
-    }
-    .cutout-image {
-      height: 96%;
-      max-width: none;
-      object-fit: contain;
-      object-position: right bottom;
-      filter: drop-shadow(-10px 20px 40px rgba(0, 0, 0, 0.55));
-    }
-
     /* Bottom Vignette to ground the subject */
     .bottom-vignette {
       position: absolute;
@@ -273,7 +236,6 @@ function buildSlideHTML(data) {
         rgba(11, 15, 25, 0.88) 100%);
       z-index: 2;
     }
-    /* Dotted texture on dark overlay */
     .dark-dotted-texture {
       position: absolute;
       top: 0;
@@ -295,9 +257,11 @@ function buildSlideHTML(data) {
       <div class="dark-dotted-texture"></div>
     ` : ''}
 
-    <!-- Top 1affairs Logo -->
+    <!-- Top Channel Brand Logo -->
     <div class="logo-container">
-      <div class="logo-brand"><span class="one">1</span><span class="affairs">affairs</span></div>
+      <div class="logo-brand">
+        ${formatBrandLogo(channelName, isFullBleed)}
+      </div>
       <div class="logo-arrow">
         <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" stroke="${isFullBleed ? '#ffffff' : '#0d0d0d'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
       </div>
@@ -311,28 +275,91 @@ function buildSlideHTML(data) {
     </div>
     
     ${!isFullBleed ? `
-    <!-- Split Visual Scene: Atmospheric Background + Circular Inset + Cutout Subject -->
+    <!-- Split Visual Scene: Atmospheric Background + Circular Insets + Cutout Subjects -->
     <div class="scene-container">
       <div class="bg-layer"></div>
       <div class="scene-fade-top"></div>
       
-      <!-- Circular Inset with White Border & Curved Arrow -->
-      ${circleImagePath ? `
-      <div class="circle-badge-container">
-        <div class="circle-badge">
-          <!-- Curved Arrow SVG pointing towards the person -->
-          <svg class="curved-arrow" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M15 80 C 25 30, 65 20, 85 45" stroke="#2b3ef2" stroke-width="8" stroke-linecap="round"/>
-            <polygon points="75,25 95,50 65,55" fill="#2b3ef2"/>
-          </svg>
-        </div>
-      </div>` : ''}
+      <!-- Multiple Circular Badges with Arrows -->
+      ${allBadges.map((badge, bIdx) => {
+        const x = badge.x !== undefined ? Number(badge.x) : (allBadges.length > 1 ? (bIdx === 0 ? 14 : 82) : 14);
+        const y = badge.y !== undefined ? Number(badge.y) : (allBadges.length > 1 ? 16 : 20);
+        const scale = (badge.scale !== undefined ? Number(badge.scale) : 100) / 100;
+        const baseSize = 320;
+        const size = Math.round(baseSize * scale);
+        const showArrow = badge.showArrow !== false;
+        const arrowOnRight = x < 50;
 
-      <!-- Foreground Cutout Person (Bleeding to edges so no cutoff) -->
-      ${cutoutImagePath ? `
-      <div class="cutout-container">
-        <img class="cutout-image" src="${cutoutImagePath}" alt="Subject" />
-      </div>` : ''}
+        return `
+        <div class="custom-badge-wrapper" style="
+          position: absolute;
+          left: ${x}%;
+          top: ${y}%;
+          transform: translate(-50%, -50%);
+          z-index: 18;
+        ">
+          <div style="
+            width: ${size}px;
+            height: ${size}px;
+            border-radius: 50%;
+            border: 8px solid #ffffff;
+            background: url('${badge.image}') center/cover no-repeat;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+            position: relative;
+          ">
+            ${showArrow ? `
+            <svg class="curved-arrow" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="
+              position: absolute;
+              ${arrowOnRight ? 'top: -55px; right: -75px; transform: rotate(10deg);' : 'top: -55px; left: -75px; transform: scaleX(-1) rotate(10deg);'}
+              width: 120px;
+              height: 120px;
+              filter: drop-shadow(0 4px 12px rgba(43, 62, 242, 0.5));
+              pointer-events: none;
+            ">
+              <path d="M15 80 C 25 30, 65 20, 85 45" stroke="#2b3ef2" stroke-width="8" stroke-linecap="round"/>
+              <polygon points="75,25 95,50 65,55" fill="#2b3ef2"/>
+            </svg>
+            ` : ''}
+          </div>
+        </div>
+        `;
+      }).join('')}
+
+      <!-- Multiple Cutout Subjects (Bleeding to bottom with customizable X, Y, Scale, Flip) -->
+      ${allCutouts.map((cutout, cIdx) => {
+        const x = cutout.x !== undefined ? Number(cutout.x) : (allCutouts.length > 1 ? (cIdx === 0 ? 25 : 75) : 75);
+        const y = cutout.y !== undefined ? Number(cutout.y) : 0;
+        const scale = (cutout.scale !== undefined ? Number(cutout.scale) : 100) / 100;
+        const flip = cutout.flip ? -1 : 1;
+        const z = cutout.zIndex || (10 + cIdx);
+        const maxW = allCutouts.length > 1 ? 620 : (allBadges.length > 0 ? 760 : 880);
+
+        return `
+        <div class="custom-cutout-wrapper" style="
+          position: absolute;
+          left: ${x}%;
+          bottom: ${y}%;
+          transform: translate(-50%, 0) scale(${scale});
+          transform-origin: bottom center;
+          z-index: ${z};
+          pointer-events: none;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          height: 100%;
+          max-height: 920px;
+        ">
+          <img class="cutout-image" src="${cutout.image}" style="
+            height: 100%;
+            max-width: ${maxW}px;
+            object-fit: contain;
+            object-position: bottom center;
+            transform: scaleX(${flip});
+            filter: drop-shadow(-8px 18px 36px rgba(0, 0, 0, 0.52));
+          " alt="Cutout ${cIdx + 1}" />
+        </div>
+        `;
+      }).join('')}
 
       <div class="bottom-vignette"></div>
     </div>
@@ -342,4 +369,5 @@ function buildSlideHTML(data) {
   </html>
   `;
 }
+
 module.exports = { buildSlideHTML };

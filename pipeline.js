@@ -117,6 +117,7 @@ async function renderFromCopyData(copyData, options = {}) {
     const totalSlides = copyData.slides.length;
     for (let idx = 0; idx < totalSlides; idx++) {
         const slide = copyData.slides[idx];
+        slide.channelName = channelName || copyData.channelName || '1affairs';
         const targetImageOrKeyword = slide.imageUrl || slide.imageEntity || copyData.imageEntity || bestStory.headline || "News";
         const slideImgPath = path.join(outputDir, `slide_bg_${idx + 1}.jpg`);
 
@@ -124,9 +125,18 @@ async function renderFromCopyData(copyData, options = {}) {
         const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, idx + 1);
         slide.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slide.imageUrl || "");
 
-        // Slide 1 has the hero person cutout & circular badge
-        slide.cutoutImagePath = (idx === 0 && !copyData.removeCutout) ? cutoutUrl : "";
-        slide.circleImagePath = (idx === 0 && !copyData.removeCircle) ? circleUrl : "";
+        // Slide 1 has the hero person cutout & circular badge (or preserve custom addons)
+        if (idx === 0) {
+            slide.cutoutImagePath = !copyData.removeCutout ? cutoutUrl : "";
+            slide.circleImagePath = !copyData.removeCircle ? circleUrl : "";
+
+            if (!slide.cutouts && slide.cutoutImagePath) {
+                slide.cutouts = [{ image: slide.cutoutImagePath, x: 75, y: 0, scale: 100, flip: false }];
+            }
+            if (!slide.badges && slide.circleImagePath) {
+                slide.badges = [{ image: slide.circleImagePath, x: 14, y: 22, scale: 100, showArrow: true }];
+            }
+        }
     }
 
     onProgress("Rendering slides with Puppeteer...");
@@ -148,16 +158,17 @@ async function renderFromCopyData(copyData, options = {}) {
 }
 
 /**
- * Step 3: Re-render only ONE specific slide on demand (e.g. retry image or tweak text).
+ * Step 3: Re-render only ONE specific slide on demand (e.g. retry image, tweak text, or Canva-style addons).
  */
 async function regenerateSingleSlide(slideIndex, slideData, options = {}) {
-    const { onProgress = console.log } = options;
+    const { channelName = '1affairs', onProgress = console.log } = options;
     const outputDir = path.join(__dirname, "output");
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
     }
 
     const idx = parseInt(slideIndex) || 0;
+    slideData.channelName = channelName || slideData.channelName || '1affairs';
     const slideImgPath = path.join(outputDir, `slide_bg_${idx + 1}.jpg`);
     const targetImageOrKeyword = slideData.imageUrl || slideData.imageEntity || "News";
 
@@ -166,11 +177,42 @@ async function regenerateSingleSlide(slideIndex, slideData, options = {}) {
     const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, seed);
     slideData.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slideData.imageUrl || "");
 
-    // Slide 1 Hero Addon handling (Circular badge & Person Cutout)
+    // If explicit cutouts and badges arrays are passed from visual editor, resolve any keywords/URLs
+    if (Array.isArray(slideData.cutouts)) {
+        for (let c of slideData.cutouts) {
+            if (c.image && !c.image.startsWith("data:") && !c.image.startsWith("file:///") && !fs.existsSync(c.image)) {
+                if (c.image.startsWith("http://") || c.image.startsWith("https://")) {
+                    // direct URL, keep as is
+                } else {
+                    // search keyword
+                    const personFile = path.join(outputDir, `person_custom_${Date.now()}.jpg`);
+                    const dl = await fetchWikipediaImage(c.image, personFile);
+                    if (dl) c.image = `file:///${dl.replace(/\\/g, '/')}`;
+                }
+            }
+        }
+    }
+
+    if (Array.isArray(slideData.badges)) {
+        for (let b of slideData.badges) {
+            if (b.image && !b.image.startsWith("data:") && !b.image.startsWith("file:///") && !fs.existsSync(b.image)) {
+                if (b.image.startsWith("http://") || b.image.startsWith("https://")) {
+                    // direct URL
+                } else {
+                    const badgeFile = path.join(outputDir, `badge_custom_${Date.now()}.jpg`);
+                    const dl = await fetchTopicImage(b.image, badgeFile, 88);
+                    if (dl) b.image = `file:///${dl.replace(/\\/g, '/')}`;
+                }
+            }
+        }
+    }
+
+    // Slide 1 legacy compatibility handling
     if (idx === 0) {
         // Circular Badge
         if (slideData.removeCircle) {
             slideData.circleImagePath = "";
+            slideData.badges = [];
         } else if (slideData.circleImageUrl || slideData.circleImageKeyword) {
             const circleTarget = slideData.circleImageUrl || slideData.circleImageKeyword;
             const circleFile = path.join(outputDir, "circle.jpg");
@@ -178,19 +220,16 @@ async function regenerateSingleSlide(slideIndex, slideData, options = {}) {
             const circleDownloaded = await fetchTopicImage(circleTarget, circleFile, 99);
             if (circleDownloaded) {
                 slideData.circleImagePath = `file:///${circleFile.replace(/\\/g, '/')}`;
-            }
-        } else if (slideData.circleImagePath) {
-            // Keep existing circle image path
-        } else {
-            const circlePath = path.join(outputDir, "circle.jpg");
-            if (fs.existsSync(circlePath)) {
-                slideData.circleImagePath = `file:///${circlePath.replace(/\\/g, '/')}`;
+                if (!slideData.badges || slideData.badges.length === 0) {
+                    slideData.badges = [{ image: slideData.circleImagePath, x: 14, y: 22, scale: 100, showArrow: true }];
+                }
             }
         }
 
         // Person Cutout
         if (slideData.removeCutout) {
             slideData.cutoutImagePath = "";
+            slideData.cutouts = [];
         } else if (slideData.cutoutImageUrl || slideData.personName) {
             const personTarget = slideData.cutoutImageUrl || slideData.personName;
             if (personTarget.toLowerCase() !== "none" && personTarget.toLowerCase() !== "null") {
@@ -203,20 +242,16 @@ async function regenerateSingleSlide(slideIndex, slideData, options = {}) {
                     const cutoutGenerated = removeBackground(personDownloaded, cutoutPath);
                     if (cutoutGenerated) {
                         slideData.cutoutImagePath = `file:///${cutoutPath.replace(/\\/g, '/')}`;
+                    } else {
+                        onProgress("rembg unavailable; using authentic portrait image directly...");
+                        slideData.cutoutImagePath = `file:///${personDownloaded.replace(/\\/g, '/')}`;
+                    }
+                    if (!slideData.cutouts || slideData.cutouts.length === 0) {
+                        slideData.cutouts = [{ image: slideData.cutoutImagePath, x: 75, y: 0, scale: 100, flip: false }];
                     }
                 }
             }
-        } else if (slideData.cutoutImagePath) {
-            // Keep existing cutout image path
-        } else {
-            const cutoutPath = path.join(outputDir, "person_cutout.png");
-            if (fs.existsSync(cutoutPath)) {
-                slideData.cutoutImagePath = `file:///${cutoutPath.replace(/\\/g, '/')}`;
-            }
         }
-    } else {
-        slideData.cutoutImagePath = "";
-        slideData.circleImagePath = "";
     }
 
     const outPath = path.join(outputDir, `slide-${idx + 1}.png`);
