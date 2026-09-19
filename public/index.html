@@ -621,13 +621,37 @@
             const reviewMode = document.getElementById('reviewToggle').checked;
             const slideCount = parseInt(document.getElementById('slideCount').value) || 5;
 
-            // Direct Mode: immediately launch blueprint editor
+            const pasteVal = document.getElementById('smartPasteInput')?.value?.trim();
+            const contextVal = document.getElementById('customContext')?.value?.trim();
+
+            const hasSlideFormat = (text) => /(?:^|\n)\s*(?:(?:Slide|Page)\s*\d+\s*[:\-.]?|\d+[\.)])/i.test(text || "");
+
+            // 1. If in Direct mode, parse the smartPasteInput if filled, or render existing
             if (currentMode === 'direct') {
-                initDirectBlueprint(slideCount);
+                if (pasteVal) {
+                    parseSmartPaste();
+                    return;
+                }
+                if (!currentCopyData || !currentCopyData.slides || currentCopyData.slides.length === 0) {
+                    initDirectBlueprint(slideCount);
+                } else {
+                    renderBlueprint(currentCopyData);
+                }
                 return;
             }
 
-            // Otherwise, Step 1 is Plan Copy
+            // 2. If in any other mode but user pasted pre-structured slides, parse them directly!
+            if (hasSlideFormat(pasteVal)) {
+                parseSmartPaste();
+                return;
+            }
+            if (hasSlideFormat(contextVal)) {
+                document.getElementById('smartPasteInput').value = contextVal;
+                parseSmartPaste();
+                return;
+            }
+
+            // Otherwise, Step 1 is Plan Copy via AI
             await startPlanning(reviewMode);
         });
 
@@ -872,7 +896,10 @@
 
         // Smart ChatGPT Paste Parser (Supports Primary & Backup URLs)
         function parseSmartPaste() {
-            const raw = document.getElementById('smartPasteInput').value.trim();
+            let raw = document.getElementById('smartPasteInput')?.value?.trim();
+            if (!raw) {
+                raw = document.getElementById('customContext')?.value?.trim() || "";
+            }
             if (!raw) return;
 
             // Match slides by "Slide 1:", "Slide 1 :", "Slide 2", "1.", etc.
@@ -884,28 +911,30 @@
 
             const isDaily = (currentTemplate === 'daily_news');
             const parsedSlides = [];
+            const isDirectImage = (u) => /\.(jpe?g|png|webp|gif|avif)($|\?)/i.test(u) || u.includes('/wp-content/') || u.includes('/images/') || u.includes('/img/') || u.includes('/thumb/');
+
             slideBlocks.forEach((block, idx) => {
                 let cleanBlock = block.replace(/^[\s:\-.]+/, '').trim();
                 const lines = cleanBlock.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                let text = "";
+                let textLines = [];
                 let subtext = isDaily ? "" : (idx === slideBlocks.length - 1 ? "The bottom line | READ CAPTION" : "Inside details | SWIPE");
-                let imageEntity = "News";
+                let imageEntity = "";
                 let imageUrl = "";
                 let backupImageUrl = "";
-
-                // Find all URLs in this slide block
-                const blockUrls = cleanBlock.match(/https?:\/\/[^\s"'>,;|]+/gi) || [];
 
                 lines.forEach(line => {
                     if (/^(?:image|keyword|visual|photo|bg|background|img)\s*[:\-=\.]\s*/i.test(line)) {
                         let rawImg = line.replace(/^(?:image|keyword|visual|photo|bg|background|img)\s*[:\-=\.]\s*/i, '').trim();
                         const urlsInLine = rawImg.match(/https?:\/\/[^\s"'>,;|]+/gi) || [];
                         if (urlsInLine.length > 0) {
-                            imageUrl = urlsInLine[0];
-                            if (urlsInLine.length > 1) {
-                                backupImageUrl = urlsInLine[1];
+                            for (const u of urlsInLine) {
+                                if (!imageUrl) {
+                                    imageUrl = u;
+                                } else if (!backupImageUrl && u !== imageUrl) {
+                                    backupImageUrl = u;
+                                }
                             }
-                        } else {
+                        } else if (!imageEntity) {
                             imageEntity = rawImg.replace(/^["']|["']$/g, '').trim();
                         }
                     } else if (/^(?:backup|alt|secondary|fallback)\s*(?:image|url|img|photo|visual|link)?\s*[:\-=\.]\s*/i.test(line)) {
@@ -923,43 +952,51 @@
                             if (!imageUrl) imageUrl = bareUrls[0];
                             else if (!backupImageUrl && bareUrls[0] !== imageUrl) backupImageUrl = bareUrls[0];
                         } else {
-                            text += (text ? " " : "") + line;
+                            textLines.push(line);
                         }
                     }
                 });
 
-                // If block contained multiple URLs but backup was not assigned yet
-                if (blockUrls.length > 1 && !backupImageUrl) {
-                    const second = blockUrls.find(u => u !== imageUrl);
-                    if (second) backupImageUrl = second;
+                // Swap if backup is a direct image file and primary is not
+                if (backupImageUrl && isDirectImage(backupImageUrl) && !isDirectImage(imageUrl)) {
+                    const tmp = imageUrl;
+                    imageUrl = backupImageUrl;
+                    backupImageUrl = tmp;
                 }
 
-                // Auto highlight first 2-4 key words if not already highlighted
+                // Highlight first key words in headline
+                let headline = textLines[0] || "News Update";
                 if (isDaily) {
-                    if (!text.includes('class="daily-yellow"') && !text.includes("class='daily-yellow'")) {
-                        const words = text.split(' ');
+                    if (!headline.includes('class="daily-yellow"') && !headline.includes("class='daily-yellow'")) {
+                        const words = headline.split(' ');
                         if (words.length > 4) {
-                            text = words.slice(0, 2).join(' ') + ` <span class="daily-yellow">${words.slice(2, 5).join(' ')}</span> ` + words.slice(5).join(' ');
+                            headline = words.slice(0, 2).join(' ') + ` <span class="daily-yellow">${words.slice(2, 5).join(' ')}</span> ` + words.slice(5).join(' ');
                         }
                     }
                 } else {
-                    if (!text.includes("<span class='highlight'>") && !text.includes('<span class="highlight">')) {
-                        const words = text.split(' ');
+                    if (!headline.includes("<span class='highlight'>") && !headline.includes('<span class="highlight">')) {
+                        const words = headline.split(' ');
                         if (words.length > 4) {
-                            text = words.slice(0, 2).join(' ') + ` <span class='highlight'>${words.slice(2, 5).join(' ')}</span> ` + words.slice(5).join(' ');
+                            headline = words.slice(0, 2).join(' ') + ` <span class='highlight'>${words.slice(2, 5).join(' ')}</span> ` + words.slice(5).join(' ');
                         }
                     }
+                }
+
+                let fullText = headline;
+                if (textLines.length > 1) {
+                    const details = textLines.slice(1).join(' ');
+                    fullText += `<br><span style="display:inline-block; margin-top:8px; font-size:0.82em; color:#d4d4d8; font-weight:700;">${details}</span>`;
                 }
 
                 // Clean authentic topic keyword derived from headline
                 let fallbackKeyword = "News";
-                const cleanHead = text.replace(/<[^>]+>/g, '').replace(/[:\-–|]/g, ' ').trim();
+                const cleanHead = headline.replace(/<[^>]+>/g, '').replace(/[:\-–|]/g, ' ').trim();
                 const headWords = cleanHead.split(/\s+/).filter(w => w.length > 2 && !/^(the|and|for|with|this|that|from|into|near|amid|across|several|about|after|before|nearly)$/i.test(w));
                 if (headWords.length > 0) {
                     fallbackKeyword = headWords.slice(0, 3).join(' ');
                 }
 
-                if (imageUrl && (imageEntity.startsWith('http') || imageEntity === 'News')) {
+                if (!imageEntity || imageEntity.startsWith('http') || imageEntity === 'News') {
                     imageEntity = fallbackKeyword;
                 }
 
@@ -967,7 +1004,7 @@
                     template: currentTemplate,
                     isCover: false,
                     isCta: false,
-                    text: text.trim(),
+                    text: fullText.trim(),
                     subtext: subtext.trim(),
                     imageEntity: imageEntity.trim(),
                     imageUrl: imageUrl.trim(),
@@ -1023,6 +1060,8 @@
                     currentCopyData.slides[0].isCover = coverToggle.checked;
                 }
 
+                const isDirectImage = (u) => /\.(jpe?g|png|webp|gif|avif)($|\?)/i.test(u || '') || (u || '').includes('/wp-content/') || (u || '').includes('/images/') || (u || '').includes('/img/') || (u || '').includes('/thumb/');
+
                 currentCopyData.slides.forEach((slide, idx) => {
                     slide.template = currentCopyData.template;
                     const textEl = document.getElementById(`bpText_${idx}`);
@@ -1049,6 +1088,13 @@
                             slide.imageEntity = val || "News";
                             slide.imageUrl = "";
                         }
+                    }
+
+                    // Prioritize direct image files over webpage article links
+                    if (slide.backupImageUrl && isDirectImage(slide.backupImageUrl) && !isDirectImage(slide.imageUrl)) {
+                        const tmp = slide.imageUrl;
+                        slide.imageUrl = slide.backupImageUrl;
+                        slide.backupImageUrl = tmp;
                     }
                 });
             }

@@ -231,16 +231,25 @@ async function fetchWikimediaImage(keyword, savePath) {
  * Helper to download a direct image URL (or extract og:image if HTML page) with 6s timeout
  */
 async function downloadDirectImageUrl(rawUrl, savePath) {
+    let fetchUrl = String(rawUrl || "").trim().replace(/^["']|["']$/g, '');
     try {
-        const fetchUrl = encodeURI(decodeURI(rawUrl));
-        console.log(`Fetching direct image URL (6s limit): ${fetchUrl}`);
+        try {
+            fetchUrl = encodeURI(decodeURI(fetchUrl));
+        } catch (e) {
+            // Keep fetchUrl as-is if malformed percent sequence
+        }
+        console.log(`Fetching direct image URL (8s limit): ${fetchUrl}`);
+        let origin = '';
+        try { origin = new URL(fetchUrl).origin + '/'; } catch (e) {}
+
         const res = await fetch(fetchUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
                 'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-                'Referer': new URL(fetchUrl).origin + '/'
+                ...(origin ? { 'Referer': origin } : {})
             },
-            timeout: 6000
+            redirect: 'follow',
+            timeout: 8000
         });
 
         if (res.ok) {
@@ -254,20 +263,26 @@ async function downloadDirectImageUrl(rawUrl, savePath) {
                     return savePath;
                 }
             } else if (ctype.includes('text/html')) {
-                // It's a webpage! Try to extract og:image
+                // It's a webpage! Try to extract og:image or twitter:image
                 console.log(`URL returned HTML, searching for og:image meta tag...`);
                 const html = await res.text();
                 const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
-                                html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+                                html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i) ||
+                                html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i);
                 if (ogMatch && ogMatch[1]) {
-                    const ogUrl = ogMatch[1].startsWith('//') ? 'https:' + ogMatch[1] : ogMatch[1];
+                    let ogUrl = ogMatch[1].trim();
+                    if (ogUrl.startsWith('//')) ogUrl = 'https:' + ogUrl;
+                    else if (ogUrl.startsWith('/')) {
+                        try { ogUrl = new URL(ogUrl, fetchUrl).href; } catch (e) {}
+                    }
                     console.log(`Found og:image: ${ogUrl}, downloading...`);
                     const ogRes = await fetch(ogUrl, {
                         headers: {
                             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                             'Accept': 'image/*,*/*'
                         },
-                        timeout: 4000
+                        redirect: 'follow',
+                        timeout: 8000
                     });
                     if (ogRes.ok) {
                         const ogBuf = await ogRes.buffer();

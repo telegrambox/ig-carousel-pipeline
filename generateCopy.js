@@ -184,6 +184,95 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
     const count = Math.max(2, Math.min(8, parseInt(slideCount) || 3));
     const fullStoryContext = story.contextText || story.description || "";
 
+    const isStructured = /(?:^|\n)\s*(?:(?:Slide|Page)\s*\d+\s*[:\-.]?|\d+[\.)])/i.test(fullStoryContext);
+    if (isStructured) {
+        console.log("Detected pre-structured slides in context for default carousel. Parsing directly...");
+        const slideBlocks = fullStoryContext.split(/(?:^|\n+)\s*(?:(?:Slide|Page)\s*\d+\s*[:\-.]?|\d+[\.)])\s*/i).filter(b => b.trim().length > 0);
+        const slides = [];
+        const isDirectImage = (u) => /\.(jpe?g|png|webp|gif|avif)($|\?)/i.test(u) || u.includes('/wp-content/') || u.includes('/images/') || u.includes('/img/') || u.includes('/thumb/');
+
+        slideBlocks.forEach((block, idx) => {
+            let cleanBlock = block.replace(/^[\s:\-.]+/, '').trim();
+            const lines = cleanBlock.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            let textLines = [];
+            let imageEntity = "";
+            let imageUrl = "";
+            let backupImageUrl = "";
+
+            lines.forEach(line => {
+                if (/^(?:image|keyword|visual|photo|bg|background|img)\s*[:\-=\.]\s*/i.test(line)) {
+                    let rawImg = line.replace(/^(?:image|keyword|visual|photo|bg|background|img)\s*[:\-=\.]\s*/i, '').trim();
+                    const urls = rawImg.match(/https?:\/\/[^\s"'>,;|]+/gi) || [];
+                    if (urls.length > 0) {
+                        for (const u of urls) {
+                            if (!imageUrl) imageUrl = u;
+                            else if (!backupImageUrl && u !== imageUrl) backupImageUrl = u;
+                        }
+                    } else if (!imageEntity) {
+                        imageEntity = rawImg.replace(/^["']|["']$/g, '').trim();
+                    }
+                } else if (/^(?:backup|alt|secondary|fallback)\s*(?:image|url|img|photo|visual|link)?\s*[:\-=\.]\s*/i.test(line)) {
+                    let rawBackup = line.replace(/^(?:backup|alt|secondary|fallback)\s*(?:image|url|img|photo|visual|link)?\s*[:\-=\.]\s*/i, '').trim();
+                    const bUrls = rawBackup.match(/https?:\/\/[^\s"'>,;|]+/gi) || [];
+                    if (bUrls.length > 0) backupImageUrl = bUrls[0];
+                } else {
+                    const bareUrls = line.match(/^https?:\/\/[^\s"'>,;|]+$/i);
+                    if (bareUrls) {
+                        if (!imageUrl) imageUrl = bareUrls[0];
+                        else if (!backupImageUrl && bareUrls[0] !== imageUrl) backupImageUrl = bareUrls[0];
+                    } else {
+                        textLines.push(line);
+                    }
+                }
+            });
+
+            if (backupImageUrl && isDirectImage(backupImageUrl) && !isDirectImage(imageUrl)) {
+                const tmp = imageUrl;
+                imageUrl = backupImageUrl;
+                backupImageUrl = tmp;
+            }
+
+            let headline = textLines[0] || "News Update";
+            if (!headline.includes("<span class='highlight'>") && !headline.includes('<span class="highlight">')) {
+                const words = headline.split(' ');
+                if (words.length > 4) {
+                    headline = words.slice(0, 2).join(' ') + ` <span class='highlight'>${words.slice(2, 5).join(' ')}</span> ` + words.slice(5).join(' ');
+                }
+            }
+
+            let fullText = headline;
+            if (textLines.length > 1) {
+                const details = textLines.slice(1).join(' ');
+                fullText += `<br><span style="display:inline-block; margin-top:8px; font-size:0.82em; color:#d4d4d8; font-weight:700;">${details}</span>`;
+            }
+
+            let fallbackKeyword = "News";
+            const cleanHead = headline.replace(/<[^>]+>/g, '').replace(/[:\-–|]/g, ' ').trim();
+            const headWords = cleanHead.split(/\s+/).filter(w => w.length > 3 && !/^(about|after|before|several|nearly|amid|across|official|underway|their|there)$/i.test(w));
+            if (headWords.length > 0) fallbackKeyword = headWords.slice(0, 3).join(' ');
+
+            if (!imageEntity || imageEntity.startsWith('http') || imageEntity === 'News') {
+                imageEntity = fallbackKeyword;
+            }
+
+            slides.push({
+                text: fullText.trim(),
+                subtext: (idx === slideBlocks.length - 1 ? "The bottom line | READ CAPTION" : "Inside details | SWIPE"),
+                imageEntity: imageEntity.trim(),
+                imageUrl: imageUrl.trim(),
+                backupImageUrl: backupImageUrl.trim(),
+                keywordSuggestions: [fallbackKeyword, "News"]
+            });
+        });
+
+        return {
+            personName: null,
+            circleImageKeyword: slides[0]?.imageEntity || "News",
+            imageEntity: slides[0]?.imageEntity || "News",
+            slides: slides
+        };
+    }
+
     const prompt = `
     You are an expert Instagram copywriter for the media brand '${channelName}'.
     Analyze the following news story and turn it into high-converting, viral carousel copy matching our brand style across EXACTLY ${count} slides.
@@ -336,6 +425,108 @@ async function generateDailyNewsCopy(options = {}) {
 
     const totalSlides = Math.max(3, Math.min(10, parseInt(slideCount) || 5));
     const secondaryCount = totalSlides - 2; // e.g. 5 - 2 = 3 secondary slides
+
+    // 0. Auto-detect if user passed pre-structured slides (e.g. "Slide 1 : ... Image : ...")
+    const rawContext = story.contextText || story.description || "";
+    const isStructured = /(?:^|\n)\s*(?:(?:Slide|Page)\s*\d+\s*[:\-.]?|\d+[\.)])/i.test(rawContext);
+    if (isStructured) {
+        console.log("Detected pre-structured slides in context. Parsing directly without AI hallucination...");
+        const slideBlocks = rawContext.split(/(?:^|\n+)\s*(?:(?:Slide|Page)\s*\d+\s*[:\-.]?|\d+[\.)])\s*/i).filter(b => b.trim().length > 0);
+        const slides = [];
+        const isDirectImage = (u) => /\.(jpe?g|png|webp|gif|avif)($|\?)/i.test(u) || u.includes('/wp-content/') || u.includes('/images/') || u.includes('/img/') || u.includes('/thumb/');
+
+        slideBlocks.forEach((block, idx) => {
+            let cleanBlock = block.replace(/^[\s:\-.]+/, '').trim();
+            const lines = cleanBlock.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            let textLines = [];
+            let imageEntity = "";
+            let imageUrl = "";
+            let backupImageUrl = "";
+
+            lines.forEach(line => {
+                if (/^(?:image|keyword|visual|photo|bg|background|img)\s*[:\-=\.]\s*/i.test(line)) {
+                    let rawImg = line.replace(/^(?:image|keyword|visual|photo|bg|background|img)\s*[:\-=\.]\s*/i, '').trim();
+                    const urls = rawImg.match(/https?:\/\/[^\s"'>,;|]+/gi) || [];
+                    if (urls.length > 0) {
+                        for (const u of urls) {
+                            if (!imageUrl) imageUrl = u;
+                            else if (!backupImageUrl && u !== imageUrl) backupImageUrl = u;
+                        }
+                    } else if (!imageEntity) {
+                        imageEntity = rawImg.replace(/^["']|["']$/g, '').trim();
+                    }
+                } else if (/^(?:backup|alt|secondary|fallback)\s*(?:image|url|img|photo|visual|link)?\s*[:\-=\.]\s*/i.test(line)) {
+                    let rawBackup = line.replace(/^(?:backup|alt|secondary|fallback)\s*(?:image|url|img|photo|visual|link)?\s*[:\-=\.]\s*/i, '').trim();
+                    const bUrls = rawBackup.match(/https?:\/\/[^\s"'>,;|]+/gi) || [];
+                    if (bUrls.length > 0) backupImageUrl = bUrls[0];
+                } else {
+                    const bareUrls = line.match(/^https?:\/\/[^\s"'>,;|]+$/i);
+                    if (bareUrls) {
+                        if (!imageUrl) imageUrl = bareUrls[0];
+                        else if (!backupImageUrl && bareUrls[0] !== imageUrl) backupImageUrl = bareUrls[0];
+                    } else {
+                        textLines.push(line);
+                    }
+                }
+            });
+
+            if (backupImageUrl && isDirectImage(backupImageUrl) && !isDirectImage(imageUrl)) {
+                const tmp = imageUrl;
+                imageUrl = backupImageUrl;
+                backupImageUrl = tmp;
+            }
+
+            let headline = textLines[0] || "News Update";
+            if (!headline.includes('class="daily-yellow"') && !headline.includes("class='daily-yellow'")) {
+                const words = headline.split(' ');
+                if (words.length > 4) {
+                    headline = words.slice(0, 2).join(' ') + ` <span class="daily-yellow">${words.slice(2, 5).join(' ')}</span> ` + words.slice(5).join(' ');
+                }
+            }
+
+            let fullText = headline;
+            if (textLines.length > 1) {
+                const details = textLines.slice(1).join(' ');
+                fullText += `<br><span style="display:inline-block; margin-top:8px; font-size:0.82em; color:#d4d4d8; font-weight:700;">${details}</span>`;
+            }
+
+            let fallbackKeyword = "News";
+            const cleanHead = headline.replace(/<[^>]+>/g, '').replace(/[:\-–|]/g, ' ').trim();
+            const headWords = cleanHead.split(/\s+/).filter(w => w.length > 3 && !/^(about|after|before|several|nearly|amid|across|official|underway|their|there)$/i.test(w));
+            if (headWords.length > 0) fallbackKeyword = headWords.slice(0, 3).join(' ');
+
+            if (!imageEntity || imageEntity.startsWith('http') || imageEntity === 'News') {
+                imageEntity = fallbackKeyword;
+            }
+
+            slides.push({
+                template: 'daily_news',
+                isCover: false,
+                isCta: false,
+                channelName: channelName,
+                text: fullText.trim(),
+                subtext: "",
+                imageEntity: imageEntity.trim(),
+                imageUrl: imageUrl.trim(),
+                backupImageUrl: backupImageUrl.trim(),
+                keywordSuggestions: [fallbackKeyword, "News"],
+                bgImagePath: ""
+            });
+        });
+
+        const bulletsList = slides.map((s, idx) => `${idx + 1}. ${s.text.replace(/<[^>]+>/g, '').trim()}`).join('\n\n');
+        const caption = `🚨 WHAT HAPPENED IN INDIA - LAST 24 HOURS IN 60 SECONDS 🇮🇳\n\n${bulletsList}\n\nSwipe through the carousel to see the full breakdown! Which story surprised you the most? Drop your reaction below! 👇\n\n#India #DailyNews #CurrentAffairs #${channelName} #BreakingNews #IndiaNews #Headlines`;
+
+        return {
+            template: 'daily_news',
+            coverStyle: coverStyle || 'styleA',
+            personName: null,
+            circleImageKeyword: slides[0]?.imageEntity || "India",
+            imageEntity: slides[0]?.imageEntity || "India Gate",
+            slides: slides,
+            caption: caption
+        };
+    }
 
     // Prepare story context / bulletin candidates
     let candidateItems = [];
