@@ -112,11 +112,15 @@ async function planCopy(options = {}) {
  */
 async function renderFromCopyData(copyData, options = {}) {
     const {
-        channelName = '1affairs',
+        channelName = copyData.channelName || '1affairs',
         bestStory = {},
         topicMode = 'auto',
+        template = copyData.template || 'default',
         onProgress = console.log
     } = options;
+
+    copyData.template = copyData.template || template || 'default';
+    const activeChannel = channelName || copyData.channelName || '1affairs';
 
     resetUsedMedia();
 
@@ -135,15 +139,24 @@ async function renderFromCopyData(copyData, options = {}) {
     // DAILY NEWS TEMPLATE PIPELINE
     // ==========================================
     if (copyData.template === 'daily_news') {
-        onProgress("Rendering Daily News carousel (Secondary-first workflow)...");
+        onProgress("Rendering Daily News carousel...");
         const totalSlides = copyData.slides.length;
         const secondaryImgPaths = [];
 
-        // 1. Download images and prepare Secondary News Slides (Slides 2 to N-1)
-        for (let idx = 1; idx < totalSlides - 1; idx++) {
+        const isSlide0Cover = (copyData.slides[0]?.isCover === true);
+        const lastIdx = totalSlides - 1;
+        const isLastCta = (copyData.slides[lastIdx]?.isCta === true);
+
+        // 1. Process all Story Slides (fetch background photos)
+        for (let idx = 0; idx < totalSlides; idx++) {
             const slide = copyData.slides[idx];
             slide.template = 'daily_news';
-            slide.channelName = channelName;
+            slide.channelName = activeChannel;
+
+            // Skip Cover or CTA during initial story photo download
+            if (idx === 0 && isSlide0Cover) continue;
+            if (idx === lastIdx && isLastCta) continue;
+
             const targetImageOrKeyword = slide.imageUrl || slide.imageEntity || "India";
             const slideImgPath = path.join(outputDir, `slide_bg_${idx + 1}.jpg`);
 
@@ -153,67 +166,70 @@ async function renderFromCopyData(copyData, options = {}) {
             secondaryImgPaths.push(slide.bgImagePath);
         }
 
-        // 2. Prepare Slide N (CTA Slide)
-        const lastIdx = totalSlides - 1;
-        const ctaSlide = copyData.slides[lastIdx];
-        ctaSlide.template = 'daily_news';
-        ctaSlide.isCta = true;
-        ctaSlide.channelName = channelName;
-
-        // 3. Assemble Slide 1 (Cover Page with Collaged Elements)
-        const coverSlide = copyData.slides[0];
-        coverSlide.template = 'daily_news';
-        coverSlide.isCover = true;
-        coverSlide.coverStyle = coverSlide.coverStyle || copyData.coverStyle || 'styleA';
-        coverSlide.channelName = channelName;
-
-        // Cover Background
-        if (!coverSlide.bgImagePath) {
-            const coverBgPath = path.join(outputDir, "slide_bg_1.jpg");
-            onProgress("Fetching background scene for Cover ('India Gate')...");
-            const bgDownloaded = await fetchTopicImage(coverSlide.imageEntity || "India Gate", coverBgPath, 101);
-            coverSlide.bgImagePath = bgDownloaded ? `file:///${coverBgPath.replace(/\\/g, '/')}` : (secondaryImgPaths[0] || "");
+        // 2. Prepare Slide N (CTA Slide) ONLY if isLastCta is true
+        if (isLastCta) {
+            const ctaSlide = copyData.slides[lastIdx];
+            ctaSlide.template = 'daily_news';
+            ctaSlide.isCta = true;
+            ctaSlide.channelName = activeChannel;
         }
 
-        // Cover Hero Cutout 1
-        let cutoutUrl = coverSlide.cutoutImagePath || "";
-        const personTarget = coverSlide.cutoutImageUrl || coverSlide.personName || copyData.personName;
-        if (!cutoutUrl && personTarget && personTarget.toLowerCase() !== "none" && personTarget.toLowerCase() !== "null") {
-            onProgress(`Fetching portrait cutout for Cover: ${personTarget}...`);
-            const rawPersonPath = path.join(outputDir, "person_raw.jpg");
-            const personDownloaded = await fetchWikipediaImage(personTarget, rawPersonPath);
-            if (personDownloaded) {
-                onProgress("Extracting portrait cutout using rembg...");
-                const cutoutPath = path.join(outputDir, "person_cutout.png");
-                const cutoutGenerated = removeBackground(personDownloaded, cutoutPath);
-                if (cutoutGenerated) {
-                    cutoutUrl = `file:///${cutoutPath.replace(/\\/g, '/')}`;
+        // 3. Assemble Slide 1 (Cover Page with Collaged Elements) ONLY if isSlide0Cover is true
+        if (isSlide0Cover) {
+            const coverSlide = copyData.slides[0];
+            coverSlide.template = 'daily_news';
+            coverSlide.isCover = true;
+            coverSlide.coverStyle = coverSlide.coverStyle || copyData.coverStyle || 'styleA';
+            coverSlide.channelName = activeChannel;
+
+            // Cover Background
+            if (!coverSlide.bgImagePath) {
+                const coverBgPath = path.join(outputDir, "slide_bg_1.jpg");
+                onProgress("Fetching background scene for Cover ('India Gate')...");
+                const bgDownloaded = await fetchTopicImage(coverSlide.imageEntity || "India Gate", coverBgPath, 101);
+                coverSlide.bgImagePath = bgDownloaded ? `file:///${coverBgPath.replace(/\\/g, '/')}` : (secondaryImgPaths[0] || "");
+            }
+
+            // Cover Hero Cutout 1
+            let cutoutUrl = coverSlide.cutoutImagePath || "";
+            const personTarget = coverSlide.cutoutImageUrl || coverSlide.personName || copyData.personName;
+            if (!cutoutUrl && personTarget && personTarget.toLowerCase() !== "none" && personTarget.toLowerCase() !== "null") {
+                onProgress(`Fetching portrait cutout for Cover: ${personTarget}...`);
+                const rawPersonPath = path.join(outputDir, "person_raw.jpg");
+                const personDownloaded = await fetchWikipediaImage(personTarget, rawPersonPath);
+                if (personDownloaded) {
+                    onProgress("Extracting portrait cutout using rembg...");
+                    const cutoutPath = path.join(outputDir, "person_cutout.png");
+                    const cutoutGenerated = removeBackground(personDownloaded, cutoutPath);
+                    if (cutoutGenerated) {
+                        cutoutUrl = `file:///${cutoutPath.replace(/\\/g, '/')}`;
+                    }
                 }
             }
-        }
-        coverSlide.cutoutImagePath = cutoutUrl;
+            coverSlide.cutoutImagePath = cutoutUrl;
 
-        // Cover Hero Cutout 2 (if Style B)
-        let cutout2Url = coverSlide.cutout2ImagePath || "";
-        const person2Target = coverSlide.cutout2ImageUrl || coverSlide.person2Name;
-        if (coverSlide.coverStyle === 'styleB' && !cutout2Url && person2Target) {
-            const rawPerson2Path = path.join(outputDir, "person2_raw.jpg");
-            const person2Downloaded = await fetchWikipediaImage(person2Target, rawPerson2Path);
-            if (person2Downloaded) {
-                const cutout2Path = path.join(outputDir, "person2_cutout.png");
-                const cutout2Generated = removeBackground(person2Downloaded, cutout2Path);
-                if (cutout2Generated) {
-                    cutout2Url = `file:///${cutout2Path.replace(/\\/g, '/')}`;
+            // Cover Hero Cutout 2 (if Style B)
+            let cutout2Url = coverSlide.cutout2ImagePath || "";
+            const person2Target = coverSlide.cutout2ImageUrl || coverSlide.person2Name;
+            if (coverSlide.coverStyle === 'styleB' && !cutout2Url && person2Target) {
+                const rawPerson2Path = path.join(outputDir, "person2_raw.jpg");
+                const person2Downloaded = await fetchWikipediaImage(person2Target, rawPerson2Path);
+                if (person2Downloaded) {
+                    const cutout2Path = path.join(outputDir, "person2_cutout.png");
+                    const cutout2Generated = removeBackground(person2Downloaded, cutout2Path);
+                    if (cutout2Generated) {
+                        cutout2Url = `file:///${cutout2Path.replace(/\\/g, '/')}`;
+                    }
                 }
             }
-        }
-        coverSlide.cutout2ImagePath = cutout2Url;
+            coverSlide.cutout2ImagePath = cutout2Url;
 
-        // Cover 3 Badges: Assign from secondary story images if not explicitly specified
-        if (!Array.isArray(coverSlide.badgeImages) || coverSlide.badgeImages.length === 0) {
-            coverSlide.badgeImages = secondaryImgPaths.slice(0, 3);
-            while (coverSlide.badgeImages.length < 3) {
-                coverSlide.badgeImages.push(secondaryImgPaths[0] || coverSlide.bgImagePath);
+            // Cover 3 Badges: Assign from secondary story images if not explicitly specified
+            if (!Array.isArray(coverSlide.badgeImages) || coverSlide.badgeImages.length === 0) {
+                coverSlide.badgeImages = secondaryImgPaths.slice(0, 3);
+                while (coverSlide.badgeImages.length < 3) {
+                    coverSlide.badgeImages.push(secondaryImgPaths[0] || coverSlide.bgImagePath);
+                }
             }
         }
 
@@ -264,6 +280,7 @@ async function renderFromCopyData(copyData, options = {}) {
     const totalSlides = copyData.slides.length;
     for (let idx = 0; idx < totalSlides; idx++) {
         const slide = copyData.slides[idx];
+        slide.template = 'default';
         const targetImageOrKeyword = slide.imageUrl || slide.imageEntity || copyData.imageEntity || bestStory.headline || "News";
         const slideImgPath = path.join(outputDir, `slide_bg_${idx + 1}.jpg`);
 
@@ -271,7 +288,7 @@ async function renderFromCopyData(copyData, options = {}) {
         const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, idx + 1);
         slide.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slide.imageUrl || "");
 
-        slide.channelName = channelName;
+        slide.channelName = activeChannel;
         // Slide 1 has the hero person cutout & circular badge
         slide.cutoutImagePath = (idx === 0 && !copyData.removeCutout) ? cutoutUrl : "";
         slide.circleImagePath = (idx === 0 && !copyData.removeCircle) ? circleUrl : "";
@@ -316,8 +333,8 @@ async function regenerateSingleSlide(slideIndex, slideData, options = {}) {
     const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, seed);
     slideData.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slideData.imageUrl || "");
 
-    // Slide 1 Hero Addon handling (Circular badge & Person Cutout)
-    if (idx === 0) {
+    // Slide 1 Hero Addon handling (Circular badge & Person Cutout for Default template ONLY, or Daily News Cover)
+    if (idx === 0 && slideData.template !== 'daily_news') {
         // Circular Badge
         if (slideData.removeCircle) {
             slideData.circleImagePath = "";
@@ -362,6 +379,22 @@ async function regenerateSingleSlide(slideIndex, slideData, options = {}) {
             const cutoutPath = path.join(outputDir, "person_cutout.png");
             if (fs.existsSync(cutoutPath)) {
                 slideData.cutoutImagePath = `file:///${cutoutPath.replace(/\\/g, '/')}`;
+            }
+        }
+    } else if (idx === 0 && slideData.template === 'daily_news' && slideData.isCover) {
+        // Daily News cover re-assembly
+        if (slideData.personName || slideData.cutoutImageUrl) {
+            const personTarget = slideData.cutoutImageUrl || slideData.personName;
+            if (personTarget && personTarget.toLowerCase() !== "none") {
+                const rawPersonPath = path.join(outputDir, "person_raw.jpg");
+                const personDownloaded = await fetchWikipediaImage(personTarget, rawPersonPath);
+                if (personDownloaded) {
+                    const cutoutPath = path.join(outputDir, "person_cutout.png");
+                    const cutoutGenerated = removeBackground(personDownloaded, cutoutPath);
+                    if (cutoutGenerated) {
+                        slideData.cutoutImagePath = `file:///${cutoutPath.replace(/\\/g, '/')}`;
+                    }
+                }
             }
         }
     } else {

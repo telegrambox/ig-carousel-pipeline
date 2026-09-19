@@ -15,13 +15,21 @@ function resetUsedMedia() {
  */
 async function fetchWikipediaImage(personName, savePath) {
     if (!personName) return null;
-    const cleanName = String(personName).trim();
+    let cleanName = String(personName).trim().replace(/^["']|["']$/g, '').trim();
 
-    // 1. Direct Web URL
-    if (cleanName.startsWith("http://") || cleanName.startsWith("https://")) {
+    // 1. Direct Web URL (handles surrounding spaces, quotes, or markdown)
+    const urlMatch = cleanName.match(/https?:\/\/[^\s"'>]+/i);
+    if (urlMatch) {
+        const rawUrl = urlMatch[0];
         try {
-            console.log(`Downloading direct person portrait URL: ${cleanName}`);
-            const res = await fetch(cleanName, { headers: { 'User-Agent': '1affairs-pipeline/2.0' } });
+            const fetchUrl = encodeURI(decodeURI(rawUrl));
+            console.log(`Downloading direct person portrait URL: ${fetchUrl}`);
+            const res = await fetch(fetchUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'image/*,*/*'
+                }
+            });
             if (res.ok) {
                 const buffer = await res.buffer();
                 fs.writeFileSync(savePath, buffer);
@@ -223,23 +231,31 @@ async function fetchWikimediaImage(keyword, savePath) {
  */
 async function fetchTopicImage(entityKeyword, savePath, seed = 1) {
     if (!entityKeyword) return null;
-    const cleanEntity = String(entityKeyword).trim();
+    let cleanEntity = String(entityKeyword).trim().replace(/^["']|["']$/g, '').trim();
 
-    // 1. Direct web image URL
-    if (cleanEntity.startsWith("http://") || cleanEntity.startsWith("https://")) {
+    // 1. Direct web image URL (handles surrounding spaces, quotes, or markdown)
+    const urlMatch = cleanEntity.match(/https?:\/\/[^\s"'>]+/i);
+    if (urlMatch) {
+        const rawUrl = urlMatch[0];
         try {
-            console.log(`Fetching direct image URL: ${cleanEntity}`);
-            const res = await fetch(cleanEntity, {
-                headers: { 'User-Agent': '1affairs-media-pipeline/2.0' }
+            const fetchUrl = encodeURI(decodeURI(rawUrl));
+            console.log(`Fetching direct image URL: ${fetchUrl}`);
+            const res = await fetch(fetchUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'image/*,*/*'
+                }
             });
             if (res.ok) {
                 const buffer = await res.buffer();
                 fs.writeFileSync(savePath, buffer);
                 console.log(`Saved direct URL image to ${savePath}`);
                 return savePath;
+            } else {
+                console.warn(`Direct image URL responded with status ${res.status}: ${rawUrl}`);
             }
         } catch (err) {
-            console.warn(`Failed to download direct image URL '${cleanEntity}':`, err.message);
+            console.warn(`Failed to download direct image URL '${rawUrl}':`, err.message);
         }
     }
 

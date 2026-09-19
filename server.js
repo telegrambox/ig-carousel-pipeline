@@ -72,10 +72,15 @@ app.post('/api/plan-copy', async (req, res) => {
  * Step 2: Render Carousel from Confirmed/Edited Copy
  */
 app.post('/api/render-copy', async (req, res) => {
-    const { copyData, channelName, bestStory, topicMode } = req.body;
+    const { copyData, channelName, bestStory, topicMode, template } = req.body;
     const jobId = Date.now().toString();
     jobs.set(jobId, { status: 'running', logs: [] });
     const onProgress = createLogger(jobId);
+
+    if (copyData) {
+        copyData.template = copyData.template || template || 'default';
+        if (channelName) copyData.channelName = channelName;
+    }
 
     try {
         onProgress("Rendering carousel from approved copy data...");
@@ -83,6 +88,7 @@ app.post('/api/render-copy', async (req, res) => {
             channelName,
             bestStory,
             topicMode,
+            template: copyData?.template || template || 'default',
             onProgress
         });
 

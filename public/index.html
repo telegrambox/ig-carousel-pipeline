@@ -476,6 +476,12 @@
         // Template Selection
         function selectTemplate(tpl) {
             currentTemplate = tpl;
+            if (currentCopyData) {
+                currentCopyData.template = tpl;
+                if (Array.isArray(currentCopyData.slides)) {
+                    currentCopyData.slides.forEach(s => s.template = tpl);
+                }
+            }
             const btnDefault = document.getElementById('btnTplDefault');
             const btnDaily = document.getElementById('btnTplDailyNews');
             const dailySettings = document.getElementById('dailyNewsSettings');
@@ -688,22 +694,27 @@
                         (copyData.template === 'daily_news' || currentTemplate === 'daily_news') ? `
                         <div class="p-2.5 bg-yellow-950/40 border border-yellow-500/40 rounded-lg space-y-2 mt-2">
                             <div class="flex items-center justify-between">
-                                <span class="text-[11px] font-bold text-yellow-300 uppercase tracking-wider">Slide 1 Daily News Cover Elements</span>
+                                <label class="flex items-center gap-2 cursor-pointer select-none">
+                                    <input type="checkbox" id="bpSlide1IsCover" ${slide.isCover ? 'checked' : ''} onchange="toggleSlide1Cover(this.checked)" class="w-4 h-4 text-yellow-500 bg-gray-900 border-gray-700 rounded focus:ring-yellow-400">
+                                    <span class="text-[11px] font-bold text-yellow-300 uppercase tracking-wider">Use Slide 1 as Cover Collage</span>
+                                </label>
                                 <span class="text-[10px] text-yellow-300/80">Style: ${copyData.coverStyle || 'styleA'}</span>
                             </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <div>
-                                    <label class="block text-[10px] text-gray-400 mb-0.5">Hero Cutout 1 (Person Name / URL)</label>
-                                    <input type="text" id="bpSlide1PersonName" value="${copyData.personName || ''}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. Narendra Modi OR https://..." oninput="if(document.getElementById('bpPersonName')) document.getElementById('bpPersonName').value = this.value">
+                            <div id="bpSlide1CoverDetails" class="${slide.isCover ? '' : 'hidden'} space-y-2">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[10px] text-gray-400 mb-0.5">Hero Cutout 1 (Person Name / URL)</label>
+                                        <input type="text" id="bpSlide1PersonName" value="${copyData.personName || ''}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. Narendra Modi OR https://..." oninput="if(document.getElementById('bpPersonName')) document.getElementById('bpPersonName').value = this.value">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-400 mb-0.5">Atmospheric Background Keyword / URL</label>
+                                        <input type="text" id="bpSlide1CircleKeyword" value="${slide.imageUrl || slide.imageEntity || 'India Gate'}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. India Gate">
+                                    </div>
                                 </div>
-                                <div>
-                                    <label class="block text-[10px] text-gray-400 mb-0.5">Atmospheric Background Keyword / URL</label>
-                                    <input type="text" id="bpSlide1CircleKeyword" value="${slide.imageUrl || slide.imageEntity || 'India Gate'}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. India Gate">
-                                </div>
+                                <p class="text-[10px] text-yellow-200/70 pt-1">
+                                    💡 Badges 1-3 will automatically pull visuals from secondary slides upon rendering, with full swap control after review!
+                                </p>
                             </div>
-                            <p class="text-[10px] text-yellow-200/70 pt-1">
-                                💡 Badges 1-3 will automatically pull visuals from Slides 2, 3, and 4 upon rendering, with full swap control after review!
-                            </p>
                         </div>
                         ` : `
                         <div class="p-2.5 bg-indigo-950/40 border border-indigo-500/30 rounded-lg space-y-2 mt-2">
@@ -736,6 +747,17 @@
             document.getElementById('blueprintArea').scrollIntoView({ behavior: 'smooth' });
         }
 
+        function toggleSlide1Cover(checked) {
+            const details = document.getElementById('bpSlide1CoverDetails');
+            if (details) {
+                if (checked) details.classList.remove('hidden');
+                else details.classList.add('hidden');
+            }
+            if (currentCopyData && currentCopyData.slides && currentCopyData.slides[0]) {
+                currentCopyData.slides[0].isCover = checked;
+            }
+        }
+
         function setSlideKeyword(idx, keyword) {
             const input = document.getElementById(`bpImageEntity_${idx}`);
             if (input) input.value = keyword;
@@ -761,18 +783,27 @@
 
         // Direct Text Mode: Initialize Blueprint directly from user text or inputs
         function initDirectBlueprint(slideCount) {
+            const isDaily = (currentTemplate === 'daily_news');
             currentCopyData = {
+                template: currentTemplate,
+                coverStyle: document.querySelector('input[name="coverStyle"]:checked')?.value || 'styleA',
                 personName: null,
                 circleImageKeyword: "News",
-                caption: "🚨 Breaking News Update\n\nFull breakdown above.\n\n#1affairs #news",
+                caption: `🚨 Breaking News Update\n\nFull breakdown above.\n\n#${document.getElementById('channelName').value.trim() || '1affairs'} #news`,
                 slides: []
             };
 
             for (let i = 0; i < slideCount; i++) {
                 currentCopyData.slides.push({
-                    text: i === 0 ? "Breaking: <span class='highlight'>Enter main headline here</span>." : "Enter supporting details <span class='highlight'>and evidence here</span>.",
-                    subtext: i === slideCount - 1 ? "The bottom line | READ CAPTION" : "Inside details | SWIPE",
+                    template: currentTemplate,
+                    isCover: false,
+                    isCta: false,
+                    text: isDaily 
+                        ? (i === 0 ? "Breaking: <span class=\"daily-yellow\">Enter main headline here</span>." : "Enter supporting details <span class=\"daily-yellow\">and evidence here</span>.")
+                        : (i === 0 ? "Breaking: <span class='highlight'>Enter main headline here</span>." : "Enter supporting details <span class='highlight'>and evidence here</span>."),
+                    subtext: isDaily ? "" : (i === slideCount - 1 ? "The bottom line | READ CAPTION" : "Inside details | SWIPE"),
                     imageEntity: "News",
+                    imageUrl: "",
                     keywordSuggestions: ["News", "Event"]
                 });
             }
@@ -785,50 +816,75 @@
             const raw = document.getElementById('smartPasteInput').value.trim();
             if (!raw) return;
 
-            // Match slides by "Slide 1:", "Slide 2", "1.", etc.
-            const slideBlocks = raw.split(/(?:^|\n+)(?:Slide\s*\d+[:\-.]?|\d+[\.)]|Page\s*\d+[:\-.]?)/i).filter(b => b.trim().length > 0);
+            // Match slides by "Slide 1:", "Slide 1 :", "Slide 2", "1.", etc.
+            const slideBlocks = raw.split(/(?:^|\n+)\s*(?:(?:Slide|Page)\s*\d+\s*[:\-.]?|\d+[\.)])\s*/i).filter(b => b.trim().length > 0);
             
             if (slideBlocks.length === 0) {
                 log("Could not detect slide numbers. Distributing paragraphs instead...", 'text-yellow-400');
             }
 
+            const isDaily = (currentTemplate === 'daily_news');
             const parsedSlides = [];
             slideBlocks.forEach((block, idx) => {
-                const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                let cleanBlock = block.replace(/^[\s:\-.]+/, '').trim();
+                const lines = cleanBlock.split('\n').map(l => l.trim()).filter(l => l.length > 0);
                 let text = "";
-                let subtext = idx === slideBlocks.length - 1 ? "The bottom line | READ CAPTION" : "Inside details | SWIPE";
+                let subtext = isDaily ? "" : (idx === slideBlocks.length - 1 ? "The bottom line | READ CAPTION" : "Inside details | SWIPE");
                 let imageEntity = "News";
+                let imageUrl = "";
 
                 lines.forEach(line => {
-                    if (/^(?:image|keyword|visual|photo)[:\-]\s*/i.test(line)) {
-                        imageEntity = line.replace(/^(?:image|keyword|visual|photo)[:\-]\s*/i, '').trim();
-                    } else if (/^(?:subtext|note|cta)[:\-]\s*/i.test(line)) {
-                        subtext = line.replace(/^(?:subtext|note|cta)[:\-]\s*/i, '').trim();
+                    if (/^(?:image|keyword|visual|photo|bg|background)\s*[:\-=\.]\s*/i.test(line)) {
+                        let rawImg = line.replace(/^(?:image|keyword|visual|photo|bg|background)\s*[:\-=\.]\s*/i, '').trim();
+                        const uMatch = rawImg.match(/https?:\/\/[^\s"'>]+/i);
+                        if (uMatch) {
+                            imageUrl = uMatch[0];
+                            imageEntity = uMatch[0];
+                        } else {
+                            imageEntity = rawImg.replace(/^["']|["']$/g, '').trim();
+                        }
+                    } else if (/^(?:subtext|note|cta)\s*[:\-=\.]\s*/i.test(line)) {
+                        subtext = line.replace(/^(?:subtext|note|cta)\s*[:\-=\.]\s*/i, '').trim();
                     } else {
                         text += (text ? " " : "") + line;
                     }
                 });
 
-                // Auto highlight first 3 striking words if not already highlighted
-                if (!text.includes("<span class='highlight'>")) {
-                    const words = text.split(' ');
-                    if (words.length > 4) {
-                        text = words.slice(0, 2).join(' ') + ` <span class='highlight'>${words.slice(2, 5).join(' ')}</span> ` + words.slice(5).join(' ');
+                // Auto highlight first 2-4 key words if not already highlighted
+                if (isDaily) {
+                    if (!text.includes('class="daily-yellow"') && !text.includes("class='daily-yellow'")) {
+                        const words = text.split(' ');
+                        if (words.length > 4) {
+                            text = words.slice(0, 2).join(' ') + ` <span class="daily-yellow">${words.slice(2, 5).join(' ')}</span> ` + words.slice(5).join(' ');
+                        }
+                    }
+                } else {
+                    if (!text.includes("<span class='highlight'>") && !text.includes('<span class="highlight">')) {
+                        const words = text.split(' ');
+                        if (words.length > 4) {
+                            text = words.slice(0, 2).join(' ') + ` <span class='highlight'>${words.slice(2, 5).join(' ')}</span> ` + words.slice(5).join(' ');
+                        }
                     }
                 }
 
                 parsedSlides.push({
+                    template: currentTemplate,
+                    isCover: false,
+                    isCta: false,
                     text: text.trim(),
                     subtext: subtext.trim(),
                     imageEntity: imageEntity.trim(),
+                    imageUrl: imageUrl.trim(),
                     keywordSuggestions: [imageEntity.trim(), "News"]
                 });
             });
 
             currentCopyData = {
+                template: currentTemplate,
+                coverStyle: document.querySelector('input[name="coverStyle"]:checked')?.value || 'styleA',
                 personName: null,
                 circleImageKeyword: parsedSlides[0]?.imageEntity || "News",
-                caption: `🚨 ${parsedSlides[0]?.text.replace(/<[^>]+>/g, '') || "Breaking News"}\n\nFull report summarized above.\n\n#1affairs #news #trending`,
+                caption: `🚨 ${parsedSlides[0]?.text.replace(/<[^>]+>/g, '') || "Breaking News"}\n\nFull report summarized above.\n\n#${document.getElementById('channelName').value.trim() || '1affairs'} #news #trending`,
                 slides: parsedSlides
             };
 
@@ -848,13 +904,22 @@
 
             // Collect any edits made in the blueprint fields
             if (currentCopyData && currentCopyData.slides) {
+                currentCopyData.template = currentTemplate || currentCopyData.template || 'default';
+
                 const pName = document.getElementById('bpSlide1PersonName')?.value ?? document.getElementById('bpPersonName')?.value;
                 const cKey = document.getElementById('bpSlide1CircleKeyword')?.value ?? document.getElementById('bpCircleKeyword')?.value;
                 currentCopyData.personName = pName !== undefined ? pName : currentCopyData.personName;
                 currentCopyData.circleImageKeyword = cKey !== undefined ? cKey : currentCopyData.circleImageKeyword;
                 currentCopyData.caption = document.getElementById('bpCaption')?.value || currentCopyData.caption;
 
+                // Check Slide 1 Cover toggle if present
+                const coverToggle = document.getElementById('bpSlide1IsCover');
+                if (coverToggle) {
+                    currentCopyData.slides[0].isCover = coverToggle.checked;
+                }
+
                 currentCopyData.slides.forEach((slide, idx) => {
+                    slide.template = currentCopyData.template;
                     const textEl = document.getElementById(`bpText_${idx}`);
                     const subtextEl = document.getElementById(`bpSubtext_${idx}`);
                     const entityEl = document.getElementById(`bpImageEntity_${idx}`);
@@ -862,8 +927,10 @@
                     if (subtextEl) slide.subtext = subtextEl.value;
                     if (entityEl) {
                         const val = entityEl.value.trim();
-                        if (val.startsWith('http://') || val.startsWith('https://')) {
-                            slide.imageUrl = val;
+                        const uMatch = val.match(/https?:\/\/[^\s"'>]+/i);
+                        if (uMatch) {
+                            slide.imageUrl = uMatch[0];
+                            slide.imageEntity = uMatch[0];
                         } else {
                             slide.imageEntity = val;
                             slide.imageUrl = "";
@@ -881,6 +948,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         copyData: currentCopyData,
+                        template: currentTemplate,
                         channelName: document.getElementById('channelName').value.trim() || currentCopyData.channelName || '1affairs',
                         bestStory: currentBestStory || {},
                         topicMode: currentMode
@@ -925,9 +993,9 @@
 
             generatedSlideFiles.forEach((slideFile, idx) => {
                 const slideData = currentCopyData?.slides[idx] || {};
-                const currentEntity = slideData.imageUrl || slideData.imageEntity || (idx === 0 && isDailyNews ? "Cover Collage" : "News");
+                const isCover = (idx === 0 && isDailyNews && (slideData.isCover === true));
+                const currentEntity = slideData.imageUrl || slideData.imageEntity || (isCover ? "Cover Collage" : "News");
                 const imgUrl = `/output/${slideFile}?t=${Date.now()}`;
-                const isCover = (idx === 0 && isDailyNews);
 
                 const card = document.createElement('div');
                 card.id = `slideCard_${idx}`;
