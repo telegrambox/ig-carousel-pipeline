@@ -64,8 +64,9 @@ function buildStoryFallback(story, count, channelName) {
     const cleanHeadline = headline.replace(/\s*-\s*[^-]+$/, '').trim();
     const parts = cleanHeadline.split(/[:\-–|]/).map(p => p.trim()).filter(p => p.length > 5);
 
-    // Extract real sentences from the RSS description
-    const rawDesc = (story.description || "").replace(/<[^>]+>/g, ' ');
+    // Extract real sentences from the context or RSS description
+    const fullText = story.contextText || story.description || "";
+    const rawDesc = fullText.replace(/<[^>]+>/g, ' ');
     const sentences = rawDesc
         .split(/(?<=[.?!])\s+|\n+/)
         .map(s => s.trim())
@@ -93,7 +94,8 @@ function buildStoryFallback(story, count, channelName) {
     slides.push({
         text: highlightedHook.trim(),
         subtext: "Full breakdown | SWIPE",
-        imageEntity: uniqueEntities[0] || mainSubject
+        imageEntity: uniqueEntities[0] || mainSubject,
+        keywordSuggestions: [uniqueEntities[0] || "News", uniqueEntities[1] || "Report"]
     });
 
     // Slides 2 to count - 1: Narrative progression from actual story sentences
@@ -116,7 +118,8 @@ function buildStoryFallback(story, count, channelName) {
         slides.push({
             text: highlighted,
             subtext: "Inside details | SWIPE",
-            imageEntity: uniqueEntities[i] || mainSubject
+            imageEntity: uniqueEntities[i] || mainSubject,
+            keywordSuggestions: [uniqueEntities[i] || "Update", uniqueEntities[0] || "News"]
         });
     }
 
@@ -129,7 +132,8 @@ function buildStoryFallback(story, count, channelName) {
     slides.push({
         text: highlightedFinal,
         subtext: "The bottom line | READ CAPTION",
-        imageEntity: uniqueEntities[count - 1] || mainSubject
+        imageEntity: uniqueEntities[count - 1] || mainSubject,
+        keywordSuggestions: [uniqueEntities[count - 1] || "Conclusion", "News"]
     });
 
     return {
@@ -144,9 +148,10 @@ function buildStoryFallback(story, count, channelName) {
  * Batch 2: Dedicated lightweight caption generator.
  * Runs in ~1s and never exhausts the slide token budget.
  */
-async function generatePostCaption(headline, channelName) {
+async function generatePostCaption(headline, channelName, contextText = "") {
     try {
-        const prompt = `Write a high-converting 2-sentence viral Instagram caption with 5 relevant trending hashtags for this news headline: "${headline}". Media brand: '${channelName}'. Output only the caption text.`;
+        const brief = contextText ? `Context: ${contextText.slice(0, 300)}...` : "";
+        const prompt = `Write a high-converting 2-sentence viral Instagram caption with 5 relevant trending hashtags for this news headline: "${headline}". ${brief} Media brand: '${channelName}'. Output only the caption text.`;
         const res = await fetch('https://text.pollinations.ai/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -172,39 +177,40 @@ async function generatePostCaption(headline, channelName) {
 }
 
 /**
- * Main copy generator: Keeps your exact prompt & storytelling rules.
- * Decoupled caption saves ~40% token budget, ensuring 4-5 slides succeed cleanly.
+ * Main copy generator: Supports full context summaries, dynamic slide counts,
+ * comprehensive story segmentation, and niche-aware image entities.
  */
 async function generateCarouselCopy(story, channelName = '1affairs', slideCount = 3) {
     const count = Math.max(2, Math.min(8, parseInt(slideCount) || 3));
+    const fullStoryContext = story.contextText || story.description || "";
 
-    // Notice: We do NOT request "caption" in this prompt to save token budget for 4-5 slides!
     const prompt = `
     You are an expert Instagram copywriter for the media brand '${channelName}'.
-    Analyze the following news story and turn it into high-converting, viral carousel copy matching our brand style.
+    Analyze the following news story and turn it into high-converting, viral carousel copy matching our brand style across EXACTLY ${count} slides.
 
-    CRITICAL RULE FOR NARRATIVE BUILDUP (NO REPETITIVE TEXT!):
-    Read the story deeply. You must break the story down into a progressive narrative across EXACTLY ${count} slides.
-    Do NOT follow a generic "Hook -> stat" loop. Think wisely about what information goes on what page.
-    Every single slide must convey distinct, meaningful information that builds the story context (e.g., Hook -> Background Context -> Shocking Detail -> Wider Impact -> Call to Action / Conclusion).
-    DO NOT repeat the same sentences or structures across slides!
+    CRITICAL RULE FOR COMPREHENSIVE STORY COVERAGE (NO REPETITIVE TEXT!):
+    ${fullStoryContext ? "You have been provided with detailed news context/article. Read it deeply and divide the entire narrative chronologically across all slides. Ensure full story coverage with zero missing facts and zero repeated sentences." : "Read the story deeply. Break the story down into a progressive narrative across all slides. Do NOT follow a generic loop. Every slide must convey distinct, meaningful information."}
+    - Slide 1: Breaking high-stakes hook with the primary news event.
+    - Slides 2 to ${count - 1}: Crucial context, what sparked the event, specific numbers, turning points, on-ground reactions.
+    - Slide ${count}: Definitive conclusion completing the story (takeaway, resolution, or ongoing status).
+    In each slide's "text", wrap 2-4 impactful words in <span class='highlight'>bold words</span>.
 
-    CRITICAL RULE FOR IMAGES:
-    Every single slide MUST have a distinct, highly relevant "imageEntity" representing what that specific slide discusses.
-    This entity MUST be a simple 1-2 word real-world physical noun or proper noun that exists on Wikipedia (e.g., 'Stock market', 'Narendra Modi', 'Semiconductor', 'Solar panel', 'Protest'). 
-    DO NOT use descriptive adjectives or long phrases.
-    DO NOT repeat the same imageEntity across slides!
+    CRITICAL RULE FOR NICHE-AWARE IMAGES:
+    For EVERY slide, choose a UNIQUE 1-2 word Wikipedia topic title for "imageEntity" representing what that specific slide discusses.
+    CRITICAL: It MUST remain strictly anchored to the core niche and cultural/geographic setting of the story (e.g. if the story is about an Indian student election clash, use entities like 'Delhi University', 'Student protest', 'Police van', 'Supreme Court of India', NOT generic global photos).
+    Also provide 2 alternative keyword suggestions in "keywordSuggestions" for each slide.
 
     The output MUST be valid JSON matching exactly this shape:
     {
-        "personName": "Full name of the main person/leader/businessman in this story (e.g., 'Gautam Adani', 'Nirmala Sitharaman', 'Mukesh Ambani'). If none, null.",
-        "circleImageKeyword": "A specific 1-2 word keyword for a secondary circular visual (e.g., 'Mansion', 'Stock market', 'Factory').",
-        "imageEntity": "A 1-2 word Wikipedia entity for slide 1.",
+        "personName": "Full name of main person/leader if applicable, else null",
+        "circleImageKeyword": "1-2 word keyword for circular badge visual",
+        "imageEntity": "1-2 word Wikipedia entity for slide 1",
         "slides": [
             {
                 "text": "The main hook or story detail here. Wrap the most striking stat/claim in <span class='highlight'>bold claim here</span>.",
                 "subtext": "A brief supporting thought. | SWIPE",
-                "imageEntity": "Specific 1-2 word Wikipedia entity for the background photo of THIS slide."
+                "imageEntity": "Specific 1-2 word Wikipedia entity for THIS slide",
+                "keywordSuggestions": ["Alternative 1", "Alternative 2"]
             }
         ]
     }
@@ -212,7 +218,7 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
     
     News Story:
     Headline: ${story.headline}
-    Description: ${story.description || ""}
+    ${fullStoryContext ? `Detailed Context / Full Story:\n${fullStoryContext}` : ""}
     `;
 
     let content = "";
@@ -290,15 +296,18 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
         if (!s.text) s.text = `<span class='highlight'>Breaking update</span>`;
         if (!s.imageEntity) s.imageEntity = parsed.imageEntity || "News";
         if (!s.subtext) s.subtext = idx === parsed.slides.length - 1 ? "Read caption | READ CAPTION" : "More details | SWIPE";
+        if (!s.keywordSuggestions || !Array.isArray(s.keywordSuggestions)) {
+            s.keywordSuggestions = [s.imageEntity, "News"];
+        }
     });
 
-    // 6. Batch 2: Generate caption separately to guarantee it never fails
+    // 6. Batch 2: Generate caption separately
     if (!parsed.caption) {
         console.log("Generating caption in Batch 2...");
-        parsed.caption = await generatePostCaption(story.headline, channelName);
+        parsed.caption = await generatePostCaption(story.headline, channelName, fullStoryContext);
     }
 
     return parsed;
 }
 
-module.exports = { generateCarouselCopy, buildStoryFallback };
+module.exports = { generateCarouselCopy, generatePostCaption, buildStoryFallback, repairTruncatedJson };

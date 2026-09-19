@@ -3,148 +3,316 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>1affairs Pipeline Dashboard</title>
+    <title>1affairs Carousel Studio</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .terminal {
             font-family: 'Courier New', Courier, monospace;
             white-space: pre-wrap;
         }
+        .highlight-preview {
+            background-color: #2563eb;
+            color: #ffffff;
+            padding: 0 4px;
+            border-radius: 2px;
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
     </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen">
-    <div class="container mx-auto p-6 max-w-6xl">
-        <header class="mb-8 border-b border-gray-700 pb-4">
-            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">Instagram Carousel Pipeline</h1>
-            <p class="text-gray-400 mt-2">Generate 3:4 Viral News Carousels</p>
+<body class="bg-gray-950 text-white min-h-screen">
+    <div class="container mx-auto p-4 md:p-6 max-w-7xl">
+        <!-- Header -->
+        <header class="mb-6 border-b border-gray-800 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-500">
+                    Instagram Carousel Studio
+                </h1>
+                <p class="text-gray-400 text-sm mt-1">Multi-Slide News Narrative & Image Engine</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-xs bg-gray-800 border border-gray-700 px-3 py-1.5 rounded-full text-gray-300 flex items-center">
+                    <span class="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
+                    Studio Online
+                </span>
+            </div>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <!-- Controls Sidebar -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg h-fit">
-                <h2 class="text-xl font-semibold mb-4 border-b border-gray-600 pb-2">Configuration</h2>
-                
-                <form id="pipelineForm" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300">Channel Name</label>
-                        <input type="text" id="channelName" value="1affairs" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <!-- Main Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left Controls: Mode & Settings -->
+            <div class="lg:col-span-4 space-y-6">
+                <div class="bg-gray-900 border border-gray-800 p-5 rounded-xl shadow-xl">
+                    <h2 class="text-lg font-semibold mb-3 text-gray-200">Creation Mode</h2>
+                    
+                    <!-- Mode Tabs -->
+                    <div class="grid grid-cols-3 gap-1 bg-gray-800 p-1 rounded-lg mb-4 text-xs font-medium">
+                        <button type="button" id="tabAuto" onclick="switchMode('auto')" class="py-2 px-1 rounded-md text-center transition bg-blue-600 text-white shadow">
+                            ⚡ Auto
+                        </button>
+                        <button type="button" id="tabContext" onclick="switchMode('custom')" class="py-2 px-1 rounded-md text-center transition text-gray-400 hover:text-white">
+                            📝 Summary
+                        </button>
+                        <button type="button" id="tabDirect" onclick="switchMode('direct')" class="py-2 px-1 rounded-md text-center transition text-gray-400 hover:text-white">
+                            ✍ Direct
+                        </button>
                     </div>
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300">Category (if Auto)</label>
-                        <select id="category" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="finance">Finance</option>
-                            <option value="news">General News</option>
-                            <option value="tech">Tech</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="block text-sm font-medium text-gray-300">Number of Slides</label>
-                            <span id="slideCountVal" class="text-xs font-semibold text-blue-400 bg-gray-700 px-2 py-0.5 rounded">3 Slides</span>
+                    <form id="pipelineForm" class="space-y-4">
+                        <!-- Global Config -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-400 mb-1">Channel Name</label>
+                                <input type="text" id="channelName" value="1affairs" class="w-full bg-gray-800 border border-gray-700 rounded-md py-1.5 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div id="categoryContainer">
+                                <label class="block text-xs font-medium text-gray-400 mb-1">Category</label>
+                                <select id="category" class="w-full bg-gray-800 border border-gray-700 rounded-md py-1.5 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="finance">Finance / Business</option>
+                                    <option value="news">General News</option>
+                                    <option value="tech">Tech / AI</option>
+                                </select>
+                            </div>
                         </div>
-                        <input type="range" id="slideCount" min="3" max="8" value="3" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
-                    </div>
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300">Topic Selection</label>
-                        <div class="mt-2 space-y-2">
-                            <label class="flex items-center">
-                                <input type="radio" name="topicMode" value="auto" checked class="text-blue-500 bg-gray-700 border-gray-600 focus:ring-blue-500">
-                                <span class="ml-2 text-sm text-gray-300">Auto (Trending)</span>
-                            </label>
-                            <label class="flex items-center">
-                                <input type="radio" name="topicMode" value="custom" class="text-blue-500 bg-gray-700 border-gray-600 focus:ring-blue-500">
-                                <span class="ml-2 text-sm text-gray-300">Custom Topic</span>
-                            </label>
+                        <!-- Slide Count -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-xs font-medium text-gray-400">Carousel Length</label>
+                                <span id="slideCountVal" class="text-xs font-bold text-blue-400 bg-gray-800 px-2 py-0.5 rounded border border-gray-700">5 Slides</span>
+                            </div>
+                            <input type="range" id="slideCount" min="2" max="8" value="5" class="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-blue-500">
                         </div>
-                    </div>
 
-                    <div id="customTopicContainer" class="hidden">
-                        <label class="block text-sm font-medium text-gray-300">Custom Headline / Link</label>
-                        <textarea id="customTopic" rows="3" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Mukesh Ambani launches new AI initiative..."></textarea>
-                    </div>
+                        <!-- Mode 2: Summary / Full Article Context Inputs -->
+                        <div id="contextModeContainer" class="hidden space-y-3 pt-2 border-t border-gray-800">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Headline / Core Topic</label>
+                                <input type="text" id="customTopic" placeholder="e.g. Clash at DU Law Centre during DUSU campaigning..." class="w-full bg-gray-800 border border-gray-700 rounded-md py-1.5 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Full Story Context / Article Summary</label>
+                                <textarea id="customContext" rows="5" placeholder="Paste full news story, article paragraphs, key bullet points, or transcript context here. The AI will segment the entire narrative across all slides..." class="w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            </div>
+                        </div>
 
-                    <button type="submit" id="runBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition duration-200 mt-4">
-                        Generate Carousel
-                    </button>
-                </form>
+                        <!-- Mode 3: Direct Text / ChatGPT Paste Mode -->
+                        <div id="directModeContainer" class="hidden space-y-3 pt-2 border-t border-gray-800">
+                            <div class="bg-gray-800/60 p-3 rounded-lg border border-gray-700/60">
+                                <label class="block text-xs font-semibold text-blue-400 mb-1">Smart ChatGPT / Text Paste</label>
+                                <p class="text-[11px] text-gray-400 mb-2">Paste copy with <code>Slide 1: ...</code>, <code>Slide 2: ...</code> (and optional <code>Image: ...</code>). It will automatically distribute into each slide.</p>
+                                <textarea id="smartPasteInput" rows="5" placeholder="Slide 1:&#10;Breaking: Clashes erupted at Delhi University...&#10;Image: Delhi University&#10;&#10;Slide 2:&#10;Students campaigning turned into protests...&#10;Image: Student protest" class="w-full bg-gray-900 border border-gray-700 rounded-md py-2 px-2.5 text-xs font-mono text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                <button type="button" onclick="parseSmartPaste()" class="mt-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold py-1.5 px-3 rounded transition flex items-center justify-center gap-1.5">
+                                    <span>✨ Parse & Fill Slides</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Review & Confirmation Toggle -->
+                        <div class="pt-2 border-t border-gray-800">
+                            <label class="flex items-center cursor-pointer select-none">
+                                <input type="checkbox" id="reviewToggle" checked class="w-4 h-4 text-blue-600 bg-gray-800 border-gray-700 rounded focus:ring-blue-500">
+                                <span class="ml-2 text-xs font-medium text-gray-300">Review & edit copy before rendering</span>
+                            </label>
+                            <p class="text-[10px] text-gray-500 ml-6 mt-0.5">Uncheck if you want to skip confirmation and render directly.</p>
+                        </div>
+
+                        <!-- Run Action Button -->
+                        <button type="submit" id="runBtn" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-2.5 px-4 rounded-lg shadow-lg transition duration-200 flex items-center justify-center gap-2">
+                            <span id="runBtnText">Plan & Review Carousel</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Terminal / Live Log -->
+                <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl flex flex-col h-48">
+                    <div class="bg-gray-800/80 px-3 py-1.5 border-b border-gray-800 flex justify-between items-center text-xs text-gray-400 font-mono">
+                        <span>activity.log</span>
+                        <span id="logStatus" class="text-green-400">Idle</span>
+                    </div>
+                    <div id="terminal" class="terminal p-3 text-xs text-green-400 overflow-y-auto flex-1 bg-gray-950 font-mono">
+                        System ready. Pick a mode and click Generate.
+                    </div>
+                </div>
             </div>
 
-            <!-- Main Content Area -->
-            <div class="md:col-span-2 space-y-6">
-                <!-- Terminal Output -->
-                <div class="bg-gray-950 rounded-lg shadow-lg border border-gray-700 overflow-hidden flex flex-col h-64">
-                    <div class="bg-gray-800 px-4 py-2 border-b border-gray-700 flex justify-between items-center">
-                        <span class="text-xs font-mono text-gray-400">pipeline.log</span>
-                        <div class="flex space-x-2">
-                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+            <!-- Right Workspace: Blueprint Editor & Results -->
+            <div class="lg:col-span-8 space-y-6">
+                <!-- STEP 1: Pre-Generation Review / Blueprint Editor Modal/Card -->
+                <div id="blueprintArea" class="hidden bg-gray-900 border border-indigo-500/50 rounded-xl p-5 shadow-2xl space-y-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-800 pb-3 gap-2">
+                        <div>
+                            <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider bg-indigo-950/60 border border-indigo-800 px-2 py-0.5 rounded">Stage 1: Review & Confirmation</span>
+                            <h2 class="text-xl font-bold text-white mt-1">Carousel Blueprint Editor</h2>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="cancelBlueprint()" class="text-xs text-gray-400 hover:text-white px-3 py-1.5 border border-gray-700 rounded-lg hover:bg-gray-800 transition">
+                                Cancel
+                            </button>
+                            <button type="button" onclick="approveAndRender()" id="approveBtn" class="text-xs bg-green-600 hover:bg-green-700 font-bold text-white px-4 py-1.5 rounded-lg shadow-md transition flex items-center gap-1.5">
+                                <span>🚀 Approve & Render Images</span>
+                            </button>
                         </div>
                     </div>
-                    <div id="terminal" class="terminal p-4 text-sm text-green-400 overflow-y-auto flex-1">
-                        System ready. Waiting for task...
+
+                    <!-- Slide Cards Container -->
+                    <div id="blueprintSlidesList" class="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+                        <!-- Slide cards will be injected dynamically -->
+                    </div>
+
+                    <!-- Metadata & Caption in Blueprint -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-gray-800">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Slide 1 Hero Person Name (Optional Cutout)</label>
+                            <input type="text" id="bpPersonName" placeholder="e.g. Narendra Modi (or null)" class="w-full bg-gray-800 border border-gray-700 rounded-md py-1.5 px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Slide 1 Circular Badge Keyword</label>
+                            <input type="text" id="bpCircleKeyword" placeholder="e.g. Campus, Stock market" class="w-full bg-gray-800 border border-gray-700 rounded-md py-1.5 px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Instagram Post Caption</label>
+                            <textarea id="bpCaption" rows="3" class="w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button type="button" onclick="approveAndRender()" class="bg-green-600 hover:bg-green-700 text-white font-bold text-sm py-2 px-6 rounded-lg shadow transition flex items-center gap-2">
+                            <span>🚀 Approve & Render All Slides</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Results Area -->
-                <div id="resultsArea" class="hidden bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
-                    <h2 class="text-xl font-semibold mb-4 border-b border-gray-600 pb-2">Generated Results</h2>
-                    
-                    <div class="mb-4">
-                        <h3 class="text-sm font-medium text-gray-400 mb-2">Generated Caption:</h3>
-                        <div id="captionBox" class="bg-gray-700 p-3 rounded text-sm text-gray-200 whitespace-pre-wrap"></div>
+                <!-- STEP 2: Post-Generation Results & Gallery -->
+                <div id="resultsArea" class="hidden bg-gray-900 border border-gray-800 rounded-xl p-5 shadow-xl space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-800 pb-3 gap-3">
+                        <div>
+                            <span class="text-xs font-bold text-green-400 uppercase tracking-wider bg-green-950/60 border border-green-800 px-2 py-0.5 rounded">Complete</span>
+                            <h2 class="text-xl font-bold text-white mt-1">Generated Carousel</h2>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button id="batchRerenderBtn" onclick="rerenderSelectedSlides()" class="hidden text-xs bg-yellow-600 hover:bg-yellow-700 font-semibold text-white px-3 py-1.5 rounded-lg transition">
+                                🔄 Re-render Selected
+                            </button>
+                            <button onclick="copyCaption()" class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                                <span id="copyCaptionIcon">📋</span>
+                                <span id="copyCaptionText">Copy Caption</span>
+                            </button>
+                            <button onclick="downloadAll()" class="text-xs bg-purple-600 hover:bg-purple-700 font-bold text-white px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1.5">
+                                <span>⬇ Download All</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <h3 class="text-sm font-medium text-gray-400 mb-2">Slides:</h3>
-                    <div id="slidesGallery" class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <!-- Slides will be injected here -->
+                    <!-- Slide Gallery Cards -->
+                    <div id="slidesGallery" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        <!-- Cards with images & slide controls injected here -->
                     </div>
-                    
-                    <div class="mt-6 flex justify-end">
-                        <button onclick="downloadAll()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition duration-200 flex items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            Download All Images
-                        </button>
+
+                    <!-- Caption Preview Box -->
+                    <div class="bg-gray-800/70 border border-gray-700/60 p-4 rounded-xl">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Instagram Caption</span>
+                            <button onclick="copyCaption()" class="text-xs text-blue-400 hover:underline">Copy to Clipboard</button>
+                        </div>
+                        <div id="captionBox" class="text-xs text-gray-200 whitespace-pre-wrap leading-relaxed font-sans"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Edit Single Slide Modal -->
+    <div id="editSlideModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-700 rounded-xl max-w-lg w-full p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                <h3 id="editModalTitle" class="text-base font-bold text-white">Edit Slide</h3>
+                <button onclick="closeEditModal()" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <input type="hidden" id="editModalSlideIndex">
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Slide Text (with highlights)</label>
+                <textarea id="editModalText" rows="3" class="w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-2.5 text-xs text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Subtext / Transition Note</label>
+                <input type="text" id="editModalSubtext" class="w-full bg-gray-800 border border-gray-700 rounded-md py-1.5 px-2.5 text-xs text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Image Search Keyword OR Image URL</label>
+                <input type="text" id="editModalImageEntity" class="w-full bg-gray-800 border border-gray-700 rounded-md py-1.5 px-2.5 text-xs text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Police van OR https://...">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Or Upload Local Image</label>
+                <input type="file" id="editModalFileInput" accept="image/*" class="w-full text-xs text-gray-400 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:bg-gray-800 file:text-gray-300 hover:file:bg-gray-700">
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-gray-800">
+                <button type="button" onclick="closeEditModal()" class="text-xs text-gray-400 hover:text-white px-3 py-1.5 border border-gray-700 rounded-lg">Cancel</button>
+                <button type="button" id="saveSlideBtn" onclick="saveAndRerenderSlide()" class="text-xs bg-blue-600 hover:bg-blue-700 font-bold text-white px-4 py-1.5 rounded-lg shadow transition">
+                    Save & Re-render Slide
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
     <script>
-        const form = document.getElementById('pipelineForm');
-        const runBtn = document.getElementById('runBtn');
-        const terminal = document.getElementById('terminal');
-        const resultsArea = document.getElementById('resultsArea');
-        const slidesGallery = document.getElementById('slidesGallery');
-        const captionBox = document.getElementById('captionBox');
-        
-        const topicModeRadios = document.getElementsByName('topicMode');
-        const customTopicContainer = document.getElementById('customTopicContainer');
+        let currentMode = 'auto'; // 'auto', 'custom', 'direct'
+        let currentCopyData = null;
+        let currentBestStory = null;
+        let generatedSlideFiles = [];
+        let selectedSlideIndices = new Set();
 
-        let generatedSlides = [];
-
-        // Toggle custom topic text area
-        topicModeRadios.forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                if (e.target.value === 'custom') {
-                    customTopicContainer.classList.remove('hidden');
-                } else {
-                    customTopicContainer.classList.add('hidden');
-                }
+        // Mode Switching
+        function switchMode(mode) {
+            currentMode = mode;
+            ['tabAuto', 'tabContext', 'tabDirect'].forEach(id => {
+                document.getElementById(id).className = 'py-2 px-1 rounded-md text-center transition text-gray-400 hover:text-white';
             });
-        });
 
+            const contextContainer = document.getElementById('contextModeContainer');
+            const directContainer = document.getElementById('directModeContainer');
+            const categoryContainer = document.getElementById('categoryContainer');
+            const runBtnText = document.getElementById('runBtnText');
+
+            if (mode === 'auto') {
+                document.getElementById('tabAuto').className = 'py-2 px-1 rounded-md text-center transition bg-blue-600 text-white shadow';
+                contextContainer.classList.add('hidden');
+                directContainer.classList.add('hidden');
+                categoryContainer.classList.remove('hidden');
+                runBtnText.textContent = document.getElementById('reviewToggle').checked ? 'Plan & Review Carousel' : 'Generate Carousel';
+            } else if (mode === 'custom') {
+                document.getElementById('tabContext').className = 'py-2 px-1 rounded-md text-center transition bg-blue-600 text-white shadow';
+                contextContainer.classList.remove('hidden');
+                directContainer.classList.add('hidden');
+                categoryContainer.classList.add('hidden');
+                runBtnText.textContent = document.getElementById('reviewToggle').checked ? 'Plan & Review Carousel' : 'Generate Carousel';
+            } else if (mode === 'direct') {
+                document.getElementById('tabDirect').className = 'py-2 px-1 rounded-md text-center transition bg-blue-600 text-white shadow';
+                contextContainer.classList.add('hidden');
+                directContainer.classList.remove('hidden');
+                categoryContainer.classList.add('hidden');
+                runBtnText.textContent = 'Open Blueprint & Fill Slides';
+            }
+        }
+
+        // Slide Count Slider
         const slideCountSlider = document.getElementById('slideCount');
         const slideCountVal = document.getElementById('slideCountVal');
         slideCountSlider.addEventListener('input', (e) => {
             slideCountVal.textContent = `${e.target.value} Slides`;
         });
 
-        function logToTerminal(msg, color = 'text-green-400') {
+        // Logger helper
+        function log(msg, color = 'text-green-400') {
+            const terminal = document.getElementById('terminal');
             const div = document.createElement('div');
             div.className = color;
             div.textContent = `> ${msg}`;
@@ -152,106 +320,536 @@
             terminal.scrollTop = terminal.scrollHeight;
         }
 
-        form.addEventListener('submit', async (e) => {
+        // Form Submit Handler
+        document.getElementById('pipelineForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            // UI Reset
-            terminal.innerHTML = '';
-            resultsArea.classList.add('hidden');
-            slidesGallery.innerHTML = '';
-            generatedSlides = [];
+            const reviewMode = document.getElementById('reviewToggle').checked;
+            const slideCount = parseInt(document.getElementById('slideCount').value) || 5;
+
+            // Direct Mode: immediately launch blueprint editor
+            if (currentMode === 'direct') {
+                initDirectBlueprint(slideCount);
+                return;
+            }
+
+            // Otherwise, Step 1 is Plan Copy
+            await startPlanning(reviewMode);
+        });
+
+        // Step 1: Planning Copy
+        async function startPlanning(reviewMode) {
+            const runBtn = document.getElementById('runBtn');
             runBtn.disabled = true;
-            runBtn.textContent = 'Running...';
-            runBtn.classList.replace('bg-blue-600', 'bg-gray-600');
+            runBtn.classList.add('opacity-50');
 
             const payload = {
-                channelName: document.getElementById('channelName').value,
-                slideCount: parseInt(document.getElementById('slideCount').value) || 3,
-                category: document.getElementById('category').value,
-                topicMode: document.querySelector('input[name="topicMode"]:checked').value,
+                topicMode: currentMode,
                 customTopic: document.getElementById('customTopic').value,
+                customContext: document.getElementById('customContext').value,
+                category: document.getElementById('category').value,
+                channelName: document.getElementById('channelName').value,
+                slideCount: parseInt(document.getElementById('slideCount').value) || 5
             };
 
-            logToTerminal(`Initializing pipeline (${payload.slideCount} slides)...`, 'text-blue-400');
+            log(`Initiating story breakdown for ${payload.slideCount} slides...`, 'text-blue-400');
+            document.getElementById('logStatus').textContent = 'Planning Copy...';
 
             try {
-                const res = await fetch('/api/generate', {
+                const res = await fetch('/api/plan-copy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                const { jobId } = await res.json();
-                
-                // Connect SSE
-                const eventSource = new EventSource(`/api/stream/${jobId}`);
-                
-                eventSource.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    
-                    if (data.type === 'log') {
-                        logToTerminal(data.message);
-                    } else if (data.type === 'error') {
-                        logToTerminal(`ERROR: ${data.message}`, 'text-red-500');
-                        eventSource.close();
-                        resetBtn();
-                    } else if (data.type === 'done') {
-                        logToTerminal('Pipeline finished successfully!', 'text-blue-400');
-                        eventSource.close();
-                        showResults(data.data);
-                        resetBtn();
-                    }
-                };
-                
-                eventSource.onerror = () => {
-                    logToTerminal('Lost connection to server.', 'text-red-500');
-                    eventSource.close();
-                    resetBtn();
-                };
+                const data = await res.json();
 
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to draft copy');
+                }
+
+                currentCopyData = data.copyData;
+                currentBestStory = data.bestStory;
+                log(`Successfully drafted ${currentCopyData.slides.length} slides!`, 'text-green-400');
+                document.getElementById('logStatus').textContent = 'Ready';
+
+                if (reviewMode) {
+                    // Show Blueprint Editor
+                    renderBlueprint(currentCopyData);
+                } else {
+                    // Skip review and render immediately
+                    log("Skip confirmation is active. Rendering images now...", 'text-yellow-400');
+                    approveAndRender();
+                }
             } catch (err) {
-                logToTerminal(`Request failed: ${err.message}`, 'text-red-500');
-                resetBtn();
+                log(`Error: ${err.message}`, 'text-red-400');
+                document.getElementById('logStatus').textContent = 'Error';
+            } finally {
+                runBtn.disabled = false;
+                runBtn.classList.remove('opacity-50');
             }
-        });
+        }
 
-        function showResults(data) {
-            resultsArea.classList.remove('hidden');
-            captionBox.textContent = data.caption || 'No caption generated.';
-            
-            data.slides.forEach(slideFile => {
-                const url = `/output/${slideFile}?t=${Date.now()}`;
-                generatedSlides.push(url);
+        // Render Blueprint Editor Cards
+        function renderBlueprint(copyData) {
+            document.getElementById('blueprintArea').classList.remove('hidden');
+            document.getElementById('resultsArea').classList.add('hidden');
+            const list = document.getElementById('blueprintSlidesList');
+            list.innerHTML = '';
+
+            document.getElementById('bpPersonName').value = copyData.personName || '';
+            document.getElementById('bpCircleKeyword').value = copyData.circleImageKeyword || copyData.imageEntity || '';
+            document.getElementById('bpCaption').value = copyData.caption || '';
+
+            copyData.slides.forEach((slide, idx) => {
+                const card = document.createElement('div');
+                card.className = 'bg-gray-800 border border-gray-700/80 rounded-lg p-3.5 space-y-2.5';
                 
-                const div = document.createElement('div');
-                div.className = 'relative group border border-gray-600 rounded overflow-hidden aspect-[3/4]';
-                div.innerHTML = `
-                    <img src="${url}" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <a href="${url}" download="${slideFile}" class="bg-gray-900 bg-opacity-80 text-white text-xs py-1 px-3 rounded hover:bg-gray-700">Download</a>
+                // Keyword pill suggestions
+                const pills = (slide.keywordSuggestions || [slide.imageEntity, "News"]).map(kw => 
+                    `<button type="button" onclick="setSlideKeyword(${idx}, '${kw.replace(/'/g, "\\'")}')" class="text-[10px] bg-gray-700 hover:bg-indigo-600 px-2 py-0.5 rounded text-gray-300 transition">${kw}</button>`
+                ).join(' ');
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-bold text-indigo-400 uppercase tracking-wider">Slide ${idx + 1} of ${copyData.slides.length}</span>
+                        <button type="button" onclick="wrapHighlight(${idx})" class="text-[10px] bg-blue-900/60 hover:bg-blue-800 text-blue-300 border border-blue-700/50 px-2 py-0.5 rounded transition">
+                            + Highlight Selected Text
+                        </button>
+                    </div>
+                    <div>
+                        <textarea id="bpText_${idx}" rows="2" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">${slide.text || ''}</textarea>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Subtext</label>
+                            <input type="text" id="bpSubtext_${idx}" value="${slide.subtext || ''}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Image Search Keyword OR Image URL</label>
+                            <input type="text" id="bpImageEntity_${idx}" value="${slide.imageUrl || slide.imageEntity || ''}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. Delhi University OR https://...">
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap pt-1">
+                        <span class="text-[10px] text-gray-500">Suggestions:</span>
+                        ${pills}
                     </div>
                 `;
-                slidesGallery.appendChild(div);
+                list.appendChild(card);
             });
+
+            // Smooth scroll to blueprint
+            document.getElementById('blueprintArea').scrollIntoView({ behavior: 'smooth' });
         }
 
-        function resetBtn() {
-            runBtn.disabled = false;
-            runBtn.textContent = 'Generate Carousel';
-            runBtn.classList.replace('bg-gray-600', 'bg-blue-600');
+        function setSlideKeyword(idx, keyword) {
+            const input = document.getElementById(`bpImageEntity_${idx}`);
+            if (input) input.value = keyword;
         }
 
-        async function downloadAll() {
-            if (generatedSlides.length === 0) return;
+        function wrapHighlight(idx) {
+            const textarea = document.getElementById(`bpText_${idx}`);
+            if (!textarea) return;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const selectedText = textarea.value.substring(start, end);
+            if (selectedText.trim().length > 0) {
+                const replacement = `<span class='highlight'>${selectedText}</span>`;
+                textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+            }
+        }
+
+        function cancelBlueprint() {
+            document.getElementById('blueprintArea').classList.add('hidden');
+        }
+
+        // Direct Text Mode: Initialize Blueprint directly from user text or inputs
+        function initDirectBlueprint(slideCount) {
+            currentCopyData = {
+                personName: null,
+                circleImageKeyword: "News",
+                caption: "🚨 Breaking News Update\n\nFull breakdown above.\n\n#1affairs #news",
+                slides: []
+            };
+
+            for (let i = 0; i < slideCount; i++) {
+                currentCopyData.slides.push({
+                    text: i === 0 ? "Breaking: <span class='highlight'>Enter main headline here</span>." : "Enter supporting details <span class='highlight'>and evidence here</span>.",
+                    subtext: i === slideCount - 1 ? "The bottom line | READ CAPTION" : "Inside details | SWIPE",
+                    imageEntity: "News",
+                    keywordSuggestions: ["News", "Event"]
+                });
+            }
+
+            renderBlueprint(currentCopyData);
+        }
+
+        // Smart ChatGPT Paste Parser
+        function parseSmartPaste() {
+            const raw = document.getElementById('smartPasteInput').value.trim();
+            if (!raw) return;
+
+            // Match slides by "Slide 1:", "Slide 2", "1.", etc.
+            const slideBlocks = raw.split(/(?:^|\n+)(?:Slide\s*\d+[:\-.]?|\d+[\.)]|Page\s*\d+[:\-.]?)/i).filter(b => b.trim().length > 0);
             
-            // Create temporary links to trigger multiple downloads
-            for (let i = 0; i < generatedSlides.length; i++) {
+            if (slideBlocks.length === 0) {
+                log("Could not detect slide numbers. Distributing paragraphs instead...", 'text-yellow-400');
+            }
+
+            const parsedSlides = [];
+            slideBlocks.forEach((block, idx) => {
+                const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                let text = "";
+                let subtext = idx === slideBlocks.length - 1 ? "The bottom line | READ CAPTION" : "Inside details | SWIPE";
+                let imageEntity = "News";
+
+                lines.forEach(line => {
+                    if (/^(?:image|keyword|visual|photo)[:\-]\s*/i.test(line)) {
+                        imageEntity = line.replace(/^(?:image|keyword|visual|photo)[:\-]\s*/i, '').trim();
+                    } else if (/^(?:subtext|note|cta)[:\-]\s*/i.test(line)) {
+                        subtext = line.replace(/^(?:subtext|note|cta)[:\-]\s*/i, '').trim();
+                    } else {
+                        text += (text ? " " : "") + line;
+                    }
+                });
+
+                // Auto highlight first 3 striking words if not already highlighted
+                if (!text.includes("<span class='highlight'>")) {
+                    const words = text.split(' ');
+                    if (words.length > 4) {
+                        text = words.slice(0, 2).join(' ') + ` <span class='highlight'>${words.slice(2, 5).join(' ')}</span> ` + words.slice(5).join(' ');
+                    }
+                }
+
+                parsedSlides.push({
+                    text: text.trim(),
+                    subtext: subtext.trim(),
+                    imageEntity: imageEntity.trim(),
+                    keywordSuggestions: [imageEntity.trim(), "News"]
+                });
+            });
+
+            currentCopyData = {
+                personName: null,
+                circleImageKeyword: parsedSlides[0]?.imageEntity || "News",
+                caption: `🚨 ${parsedSlides[0]?.text.replace(/<[^>]+>/g, '') || "Breaking News"}\n\nFull report summarized above.\n\n#1affairs #news #trending`,
+                slides: parsedSlides
+            };
+
+            // Update slide count slider to match parsed slides
+            document.getElementById('slideCount').value = parsedSlides.length;
+            document.getElementById('slideCountVal').textContent = `${parsedSlides.length} Slides`;
+
+            renderBlueprint(currentCopyData);
+            log(`Smart parser extracted ${parsedSlides.length} slides from pasted text!`, 'text-green-400');
+        }
+
+        // Step 2: Approve Blueprint & Render Carousel
+        async function approveAndRender() {
+            const approveBtn = document.getElementById('approveBtn');
+            approveBtn.disabled = true;
+            approveBtn.classList.add('opacity-50');
+
+            // Collect any edits made in the blueprint fields
+            if (currentCopyData && currentCopyData.slides) {
+                currentCopyData.personName = document.getElementById('bpPersonName')?.value || null;
+                currentCopyData.circleImageKeyword = document.getElementById('bpCircleKeyword')?.value || 'News';
+                currentCopyData.caption = document.getElementById('bpCaption')?.value || currentCopyData.caption;
+
+                currentCopyData.slides.forEach((slide, idx) => {
+                    const textEl = document.getElementById(`bpText_${idx}`);
+                    const subtextEl = document.getElementById(`bpSubtext_${idx}`);
+                    const entityEl = document.getElementById(`bpImageEntity_${idx}`);
+                    if (textEl) slide.text = textEl.value;
+                    if (subtextEl) slide.subtext = subtextEl.value;
+                    if (entityEl) {
+                        const val = entityEl.value.trim();
+                        if (val.startsWith('http://') || val.startsWith('https://')) {
+                            slide.imageUrl = val;
+                        } else {
+                            slide.imageEntity = val;
+                            slide.imageUrl = "";
+                        }
+                    }
+                });
+            }
+
+            log("Approved blueprint. Rendering carousel images with Puppeteer...", 'text-blue-400');
+            document.getElementById('logStatus').textContent = 'Rendering Carousel...';
+
+            try {
+                const res = await fetch('/api/render-copy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        copyData: currentCopyData,
+                        channelName: document.getElementById('channelName').value,
+                        bestStory: currentBestStory || {},
+                        topicMode: currentMode
+                    })
+                });
+
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Rendering failed');
+
+                log(`All ${data.slides.length} slides rendered successfully!`, 'text-green-400');
+                document.getElementById('logStatus').textContent = 'Finished';
+                
+                // Hide blueprint and display gallery
+                document.getElementById('blueprintArea').classList.add('hidden');
+                showResults(data);
+
+            } catch (err) {
+                log(`Render Error: ${err.message}`, 'text-red-400');
+                document.getElementById('logStatus').textContent = 'Error';
+            } finally {
+                approveBtn.disabled = false;
+                approveBtn.classList.remove('opacity-50');
+            }
+        }
+
+        // Display Gallery Results
+        function showResults(data) {
+            const resultsArea = document.getElementById('resultsArea');
+            const gallery = document.getElementById('slidesGallery');
+            const captionBox = document.getElementById('captionBox');
+
+            resultsArea.classList.remove('hidden');
+            gallery.innerHTML = '';
+            generatedSlideFiles = data.slides || [];
+            selectedSlideIndices.clear();
+            updateBatchButton();
+
+            captionBox.textContent = data.caption || 'No caption generated.';
+
+            generatedSlideFiles.forEach((slideFile, idx) => {
+                const slideData = currentCopyData?.slides[idx] || {};
+                const currentEntity = slideData.imageUrl || slideData.imageEntity || "News";
+                const imgUrl = `/output/${slideFile}?t=${Date.now()}`;
+
+                const card = document.createElement('div');
+                card.id = `slideCard_${idx}`;
+                card.className = 'bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-lg flex flex-col transition hover:border-gray-600';
+                card.innerHTML = `
+                    <div class="relative aspect-[3/4] bg-gray-950 overflow-hidden group">
+                        <img id="slideImg_${idx}" src="${imgUrl}" class="w-full h-full object-cover">
+                        <div class="absolute top-2 left-2 flex items-center gap-1.5 bg-black/70 backdrop-blur px-2 py-1 rounded text-[11px] font-bold text-white border border-white/10">
+                            <input type="checkbox" onchange="toggleSlideSelect(${idx})" class="rounded text-blue-500">
+                            <span>Slide ${idx + 1}</span>
+                        </div>
+                        <div class="absolute top-2 right-2">
+                            <a href="${imgUrl}" download="${slideFile}" class="bg-black/70 hover:bg-black p-1.5 rounded text-gray-300 hover:text-white transition border border-white/10 flex items-center justify-center">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-gray-900 border-t border-gray-800 space-y-2 flex-1 flex flex-col justify-between">
+                        <div>
+                            <span class="text-[10px] text-gray-500 uppercase tracking-wider block">Image Keyword</span>
+                            <span id="keywordBadge_${idx}" class="text-xs font-semibold text-blue-400 truncate block">${currentEntity}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1.5 pt-2 border-t border-gray-800/80">
+                            <button onclick="retrySlideImage(${idx})" id="retryBtn_${idx}" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-[11px] py-1.5 px-2 rounded border border-gray-700 transition flex items-center justify-center gap-1">
+                                <span>🔄 Retry Photo</span>
+                            </button>
+                            <button onclick="openEditModal(${idx})" class="bg-blue-900/40 hover:bg-blue-800 text-blue-300 text-[11px] py-1.5 px-2 rounded border border-blue-700/40 transition flex items-center justify-center gap-1">
+                                <span>✏ Edit Slide</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                gallery.appendChild(card);
+            });
+
+            resultsArea.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Retry Single Slide Image
+        async function retrySlideImage(idx) {
+            const btn = document.getElementById(`retryBtn_${idx}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span>⏳ Fetching...</span>';
+            }
+
+            const slideData = currentCopyData?.slides[idx];
+            log(`Re-fetching image for Slide ${idx + 1}...`, 'text-blue-400');
+
+            try {
+                const res = await fetch('/api/regenerate-slide', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        slideIndex: idx,
+                        slideData: slideData,
+                        channelName: document.getElementById('channelName').value
+                    })
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Failed to re-render slide');
+
+                // Update image src in DOM with cache bust
+                const img = document.getElementById(`slideImg_${idx}`);
+                if (img) img.src = `/output/${data.slideFile}?t=${Date.now()}`;
+
+                log(`Slide ${idx + 1} updated with fresh photo!`, 'text-green-400');
+            } catch (err) {
+                log(`Failed to update slide ${idx + 1}: ${err.message}`, 'text-red-400');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>🔄 Retry Photo</span>';
+                }
+            }
+        }
+
+        // Edit Single Slide Modal Controls
+        function openEditModal(idx) {
+            const slide = currentCopyData?.slides[idx];
+            if (!slide) return;
+
+            document.getElementById('editModalSlideIndex').value = idx;
+            document.getElementById('editModalTitle').textContent = `Edit Slide ${idx + 1}`;
+            document.getElementById('editModalText').value = slide.text || '';
+            document.getElementById('editModalSubtext').value = slide.subtext || '';
+            document.getElementById('editModalImageEntity').value = slide.imageUrl || slide.imageEntity || '';
+            document.getElementById('editModalFileInput').value = '';
+
+            document.getElementById('editSlideModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editSlideModal').classList.add('hidden');
+        }
+
+        async function saveAndRerenderSlide() {
+            const idx = parseInt(document.getElementById('editModalSlideIndex').value);
+            const slide = currentCopyData?.slides[idx];
+            if (!slide) return;
+
+            const saveBtn = document.getElementById('saveSlideBtn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            slide.text = document.getElementById('editModalText').value;
+            slide.subtext = document.getElementById('editModalSubtext').value;
+
+            // Handle file upload if present
+            const fileInput = document.getElementById('editModalFileInput');
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    const uploadRes = await fetch('/api/upload-image', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ slideIndex: idx, imageData: reader.result })
+                    });
+                    const uploadData = await uploadRes.json();
+                    if (uploadData.success) {
+                        slide.imageUrl = uploadData.localPath;
+                        slide.imageEntity = "Custom Photo";
+                    }
+                    await executeSlideRerender(idx, slide, saveBtn);
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+                return;
+            }
+
+            const imgEntityVal = document.getElementById('editModalImageEntity').value.trim();
+            if (imgEntityVal.startsWith('http://') || imgEntityVal.startsWith('https://')) {
+                slide.imageUrl = imgEntityVal;
+            } else {
+                slide.imageEntity = imgEntityVal;
+                slide.imageUrl = "";
+            }
+
+            await executeSlideRerender(idx, slide, saveBtn);
+        }
+
+        async function executeSlideRerender(idx, slide, saveBtn) {
+            log(`Re-rendering Slide ${idx + 1} with updated text/image...`, 'text-blue-400');
+            try {
+                const res = await fetch('/api/regenerate-slide', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        slideIndex: idx,
+                        slideData: slide,
+                        channelName: document.getElementById('channelName').value
+                    })
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+
+                // Update gallery
+                const img = document.getElementById(`slideImg_${idx}`);
+                if (img) img.src = `/output/${data.slideFile}?t=${Date.now()}`;
+                const badge = document.getElementById(`keywordBadge_${idx}`);
+                if (badge) badge.textContent = slide.imageUrl ? 'Custom URL/Upload' : slide.imageEntity;
+
+                log(`Slide ${idx + 1} re-rendered successfully!`, 'text-green-400');
+                closeEditModal();
+            } catch (err) {
+                log(`Error: ${err.message}`, 'text-red-400');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save & Re-render Slide';
+            }
+        }
+
+        // Multi-Select Re-render
+        function toggleSlideSelect(idx) {
+            if (selectedSlideIndices.has(idx)) {
+                selectedSlideIndices.delete(idx);
+            } else {
+                selectedSlideIndices.add(idx);
+            }
+            updateBatchButton();
+        }
+
+        function updateBatchButton() {
+            const btn = document.getElementById('batchRerenderBtn');
+            if (selectedSlideIndices.size > 0) {
+                btn.classList.remove('hidden');
+                btn.textContent = `🔄 Re-render (${selectedSlideIndices.size}) Slides`;
+            } else {
+                btn.classList.add('hidden');
+            }
+        }
+
+        async function rerenderSelectedSlides() {
+            const indices = Array.from(selectedSlideIndices);
+            for (const idx of indices) {
+                await retrySlideImage(idx);
+            }
+            selectedSlideIndices.clear();
+            updateBatchButton();
+        }
+
+        // Copy Caption Tool with feedback
+        async function copyCaption() {
+            const caption = document.getElementById('captionBox').textContent;
+            try {
+                await navigator.clipboard.writeText(caption);
+                document.getElementById('copyCaptionText').textContent = 'Copied!';
+                document.getElementById('copyCaptionIcon').textContent = '✅';
+                setTimeout(() => {
+                    document.getElementById('copyCaptionText').textContent = 'Copy Caption';
+                    document.getElementById('copyCaptionIcon').textContent = '📋';
+                }, 2000);
+            } catch (e) {
+                alert('Failed to copy: ' + e.message);
+            }
+        }
+
+        // Download All
+        async function downloadAll() {
+            if (generatedSlideFiles.length === 0) return;
+            for (let i = 0; i < generatedSlideFiles.length; i++) {
                 const link = document.createElement('a');
-                link.href = generatedSlides[i];
+                link.href = `/output/${generatedSlideFiles[i]}?t=${Date.now()}`;
                 link.download = `slide_${i + 1}.png`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                // Small delay to prevent browser blocking multiple downloads
                 await new Promise(r => setTimeout(r, 200));
             }
         }

@@ -54,7 +54,7 @@ async function fetchWikipediaImage(personName, savePath) {
 async function fetchWikipediaArticlePhoto(keyword, savePath) {
     try {
         console.log(`Searching Wikipedia articles for authentic photo of '${keyword}'...`);
-        const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(keyword)}&srlimit=3&format=json`;
+        const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(keyword)}&srlimit=5&format=json`;
         const searchRes = await fetch(searchUrl, {
             headers: { 'User-Agent': '1affairs-pipeline/2.0 (contact@1affairs.com)' }
         });
@@ -105,7 +105,7 @@ async function fetchWikipediaArticlePhoto(keyword, savePath) {
 async function fetchWikimediaImage(keyword, savePath) {
     try {
         console.log(`Searching Wikimedia Commons for authentic photo of '${keyword}'...`);
-        const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(keyword)}&gsrlimit=12&gsrnamespace=6&prop=imageinfo&iiprop=url&iiurlwidth=1200&format=json`;
+        const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(keyword)}&gsrlimit=15&gsrnamespace=6&prop=imageinfo&iiprop=url&iiurlwidth=1200&format=json`;
         const res = await fetch(url, {
             headers: { 'User-Agent': '1affairs-media-pipeline/2.0 (contact@1affairs.com)' }
         });
@@ -156,25 +156,76 @@ async function fetchWikimediaImage(keyword, savePath) {
 
 /**
  * Intelligent Multi-Tier Topic Image Fetcher for REAL photos:
- * 1. Tries Wikipedia Topic Article lead photo (authentic real-world photo of the topic/event)
- * 2. Tries filtered Wikimedia Commons
- * 3. Falls back to curated photography with unique seed/lock
+ * 1. Supports direct web image URLs (http:// or https://)
+ * 2. Supports direct base64 data URIs (data:image/...)
+ * 3. Supports local file paths
+ * 4. Tries Wikipedia Topic Article lead photo (authentic real-world photo of the topic/event)
+ * 5. Tries filtered Wikimedia Commons
+ * 6. Falls back to curated photography with unique seed/lock
  */
 async function fetchTopicImage(entityKeyword, savePath, seed = 1) {
-    // Clean up the entity keyword (e.g. remove "the", "a")
-    const cleanEntity = entityKeyword.replace(/^(the|a|an)\s+/i, '').trim();
+    if (!entityKeyword) return null;
+    const cleanEntity = String(entityKeyword).trim();
 
-    // 1. Try Wikipedia article authentic photo
-    const wikiArticlePhoto = await fetchWikipediaArticlePhoto(cleanEntity, savePath);
+    // 1. Direct web image URL
+    if (cleanEntity.startsWith("http://") || cleanEntity.startsWith("https://")) {
+        try {
+            console.log(`Fetching direct image URL: ${cleanEntity}`);
+            const res = await fetch(cleanEntity, {
+                headers: { 'User-Agent': '1affairs-media-pipeline/2.0' }
+            });
+            if (res.ok) {
+                const buffer = await res.buffer();
+                fs.writeFileSync(savePath, buffer);
+                console.log(`Saved direct URL image to ${savePath}`);
+                return savePath;
+            }
+        } catch (err) {
+            console.warn(`Failed to download direct image URL '${cleanEntity}':`, err.message);
+        }
+    }
+
+    // 2. Direct data URI (base64)
+    if (cleanEntity.startsWith("data:image/")) {
+        try {
+            const base64Data = cleanEntity.replace(/^data:image\/\w+;base64,/, "");
+            fs.writeFileSync(savePath, Buffer.from(base64Data, 'base64'));
+            console.log(`Saved base64 data image to ${savePath}`);
+            return savePath;
+        } catch (err) {
+            console.warn("Failed to write data URI to file:", err.message);
+        }
+    }
+
+    // 3. Direct local file path
+    if (cleanEntity.startsWith("file:///")) {
+        try {
+            let localPath = cleanEntity.replace(/^file:\/\/\/?/, '');
+            if (process.platform === "win32") {
+                localPath = localPath.replace(/^\/([a-zA-Z]:)/, '$1');
+            }
+            if (fs.existsSync(localPath)) {
+                fs.copyFileSync(localPath, savePath);
+                console.log(`Copied local image file to ${savePath}`);
+                return savePath;
+            }
+        } catch (err) {
+            console.warn("Failed to copy local file:", err.message);
+        }
+    }
+
+    // 4. Wikipedia / Wikimedia keyword search
+    const cleaned = cleanEntity.replace(/^(the|a|an)\s+/i, '').trim();
+
+    const wikiArticlePhoto = await fetchWikipediaArticlePhoto(cleaned, savePath);
     if (wikiArticlePhoto) return wikiArticlePhoto;
 
-    // 2. Try Wikimedia Commons genuine photo
-    const wikiCommonsPhoto = await fetchWikimediaImage(cleanEntity, savePath);
+    const wikiCommonsPhoto = await fetchWikimediaImage(cleaned, savePath);
     if (wikiCommonsPhoto) return wikiCommonsPhoto;
 
-    // 3. Fall back to curated photo engine with unique lock
+    // 5. Fall back to curated photo engine with unique lock
     try {
-        const words = cleanEntity.trim().split(/\s+/).filter(w => w.length > 2);
+        const words = cleaned.trim().split(/\s+/).filter(w => w.length > 2);
         const searchTag = encodeURIComponent(words.slice(0, 2).join(',') || "business,news");
         const lockSeed = Math.floor(Math.random() * 1000) + (seed * 43);
         const url = `https://loremflickr.com/1080/1080/${searchTag}?lock=${lockSeed}`;
@@ -187,7 +238,7 @@ async function fetchTopicImage(entityKeyword, savePath, seed = 1) {
         console.log(`Saved curated topic image to ${savePath}`);
         return savePath;
     } catch (err) {
-        console.error(`Error fetching topic image for ${cleanEntity}:`, err.message);
+        console.error(`Error fetching topic image for ${cleaned}:`, err.message);
         return null;
     }
 }
