@@ -4,81 +4,80 @@
  * Canvas: 1080 x 1350 (standard 4:5 portrait)
  */
 
-function formatBrandWatermark(channelName = "1affairs") {
-  const clean = String(channelName || "1affairs").trim().toUpperCase();
-  return `
-    <div style="
-      position: absolute;
-      top: 30px;
-      right: 35px;
-      z-index: 50;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      text-shadow: 0 3px 8px rgba(0,0,0,0.85);
-    ">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <svg style="width: 28px; height: 28px; fill: #ffe500; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9));" viewBox="0 0 24 24">
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-        </svg>
-        <span style="color: #ffffff; font-size: 20px; font-weight: 900; letter-spacing: 1.5px; font-family: 'Plus Jakarta Sans', sans-serif;">
-          ${clean}
-        </span>
-      </div>
-      <span style="color: #ffe500; font-size: 11px; font-weight: 800; letter-spacing: 3px; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: -2px;">
-        MEDIA
-      </span>
-    </div>
-  `;
-}
+function formatDailyNewsFooter(channelName = "ind.file") {
+  let clean = String(channelName || "").trim();
+  // If empty or legacy default '1affairs', default to 'ind.file'
+  if (!clean || clean.toLowerCase() === "1affairs") {
+    clean = "ind.file";
+  }
 
-function formatSocialFooter(channelName = "1affairs") {
-  const cleanHandle = String(channelName || "1affairs").trim().toUpperCase();
+  let orangePart = "ind.";
+  let whitePart = "file";
+
+  if (clean.includes(".")) {
+    const dotIdx = clean.indexOf(".");
+    orangePart = clean.substring(0, dotIdx + 1).toLowerCase();
+    whitePart = clean.substring(dotIdx + 1).toLowerCase();
+  } else if (clean.toLowerCase().endsWith("file") && clean.length > 4) {
+    orangePart = clean.substring(0, clean.length - 4).toLowerCase() + ".";
+    whitePart = "file";
+  } else if (clean.includes(" ")) {
+    const parts = clean.split(/\s+/);
+    orangePart = parts[0].toLowerCase() + ".";
+    whitePart = parts.slice(1).join("").toLowerCase();
+  } else if (clean.toLowerCase() === "ind") {
+    orangePart = "ind.";
+    whitePart = "file";
+  } else {
+    orangePart = clean.toLowerCase() + ".";
+    whitePart = "file";
+  }
+
   return `
+    <!-- Image 3 Daily News Custom Brand Footer -->
     <div style="
       position: absolute;
-      bottom: 0;
+      bottom: 66px;
       left: 0;
       width: 1080px;
-      height: 52px;
-      background-color: #ffe500;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 0 45px;
+      justify-content: center;
+      padding: 0 58px;
       z-index: 50;
       box-sizing: border-box;
     ">
-      <!-- Social Media Icons -->
-      <div style="display: flex; align-items: center; gap: 14px;">
-        <!-- Facebook -->
-        <div style="width: 28px; height: 28px; border-radius: 4px; background: #1877f2; display: flex; align-items: center; justify-content: center;">
-          <svg style="width: 16px; height: 16px; fill: #ffffff;" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
-        </div>
-        <!-- Instagram -->
-        <div style="width: 28px; height: 28px; border-radius: 4px; background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); display: flex; align-items: center; justify-content: center;">
-          <svg style="width: 16px; height: 16px; fill: #ffffff;" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-        </div>
-        <!-- X / Twitter -->
-        <div style="width: 28px; height: 28px; border-radius: 4px; background: #000000; display: flex; align-items: center; justify-content: center;">
-          <svg style="width: 14px; height: 14px; fill: #ffffff;" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-        </div>
-        <!-- YouTube -->
-        <div style="width: 28px; height: 28px; border-radius: 4px; background: #ff0000; display: flex; align-items: center; justify-content: center;">
-          <svg style="width: 16px; height: 16px; fill: #ffffff;" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-        </div>
+      <!-- Saffron / Orange Accent Line on Left -->
+      <div style="
+        flex: 1;
+        height: 3px;
+        background-color: #ff6200;
+        border-radius: 2px;
+      "></div>
+
+      <!-- Center Logo Wordmark in Italic Black Sans-serif -->
+      <div style="
+        font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+        font-style: italic;
+        font-weight: 900;
+        font-size: 54px;
+        letter-spacing: -1.2px;
+        margin: 0 20px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+      ">
+        <span style="color: #ff6200;">${orangePart}</span><span style="color: #ffffff;">${whitePart}</span>
       </div>
 
-      <!-- Handle / Website -->
+      <!-- Indian Green Accent Line on Right -->
       <div style="
-        font-family: 'Plus Jakarta Sans', sans-serif;
-        font-size: 20px;
-        font-weight: 900;
-        color: #000000;
-        letter-spacing: 2.5px;
-      ">
-        / ${cleanHandle.split('').join(' ')} . I N
-      </div>
+        flex: 1;
+        height: 3px;
+        background-color: #108944;
+        border-radius: 2px;
+      "></div>
     </div>
   `;
 }
@@ -88,7 +87,7 @@ function buildDailyNewsSlideHTML(data) {
     isCover = false,
     isCta = false,
     coverStyle = "styleA", // 'styleA' (Single hero cutout + 3 badges) or 'styleB' (Dual hero cutouts + 3 badges)
-    channelName = "1affairs",
+    channelName = "ind.file",
     text = "",
     highlightWord = "",
     bgImagePath = "",
@@ -98,8 +97,8 @@ function buildDailyNewsSlideHTML(data) {
     ctaImagePath = "",
   } = data;
 
-  const watermarkHTML = formatBrandWatermark(channelName);
-  const footerHTML = formatSocialFooter(channelName);
+  const watermarkHTML = ""; // Daily News has NO upper logo per user instructions
+  const footerHTML = formatDailyNewsFooter(channelName);
 
   // Common Header styles
   const headStyles = `
@@ -138,10 +137,9 @@ function buildDailyNewsSlideHTML(data) {
     return `
     <!DOCTYPE html><html><head>${headStyles}</head>
     <body>
-      ${watermarkHTML}
       <div style="
         width: 1080px;
-        height: 1298px;
+        height: 1220px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -186,8 +184,6 @@ function buildDailyNewsSlideHTML(data) {
     return `
     <!DOCTYPE html><html><head>${headStyles}</head>
     <body>
-      ${watermarkHTML}
-
       <!-- Background Atmosphere Scene -->
       <div style="
         position: absolute;
@@ -361,10 +357,10 @@ function buildDailyNewsSlideHTML(data) {
       <!-- Bottom Headline & Call to Action Block -->
       <div style="
         position: absolute;
-        bottom: 52px;
+        bottom: 95px;
         left: 0;
         width: 1080px;
-        height: 440px;
+        height: 420px;
         background-color: #000000;
         z-index: 30;
         display: flex;
@@ -459,53 +455,62 @@ function buildDailyNewsSlideHTML(data) {
   if (!processedText.includes('class="daily-yellow"') && !processedText.includes("class='daily-yellow'")) {
     processedText = processedText.replace(/<span class=['"]highlight['"]>(.*?)<\/span>/gi, '<span class="daily-yellow">$1</span>');
   }
+  // Convert plain newlines to <br/> tags if no HTML formatting exists
+  if (!processedText.includes('<br>') && !processedText.includes('<br/>') && !processedText.includes('<p>')) {
+    processedText = processedText.replace(/\n/g, '<br/>');
+  }
 
   return `
   <!DOCTYPE html><html><head>${headStyles}</head>
   <body>
-    ${watermarkHTML}
-
-    <!-- Top Visual Scene (62% height with smooth bottom fade) -->
+    <!-- Full-Bleed Background Visual Scene -->
     <div style="
       position: absolute;
-      top: 0;
-      left: 0;
+      inset: 0;
       width: 1080px;
-      height: 860px;
+      height: 1350px;
       background: url('${bgImagePath}') center/cover no-repeat;
       z-index: 1;
     ">
-      <!-- Gradient Fade into Solid Black -->
+      <!-- Gentle bottom darkening gradient starting lower down around ~52% -->
       <div style="
         position: absolute;
         inset: 0;
-        background: linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.2) 50%, #000000 88%, #000000 100%);
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0) 0%,
+          rgba(0, 0, 0, 0) 50%,
+          rgba(0, 0, 0, 0.22) 60%,
+          rgba(0, 0, 0, 0.62) 70%,
+          rgba(0, 0, 0, 0.90) 80%,
+          #000000 89%,
+          #000000 100%
+        );
       "></div>
     </div>
 
-    <!-- Bottom News Headline Card (Solid Black) -->
+    <!-- News Headline Text positioned over the darkened area -->
     <div style="
       position: absolute;
-      bottom: 52px;
+      bottom: 175px;
       left: 0;
       width: 1080px;
-      height: 440px;
-      background-color: #000000;
-      z-index: 10;
+      z-index: 20;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       text-align: center;
-      padding: 0 60px;
+      padding: 0 75px;
       box-sizing: border-box;
     ">
       <div style="
-        font-size: 54px;
+        font-size: 56px;
         font-weight: 800;
-        line-height: 1.34;
+        line-height: 1.36;
         color: #ffffff;
-        letter-spacing: -0.8px;
+        letter-spacing: -0.6px;
+        text-shadow: 0 3px 12px rgba(0, 0, 0, 0.95), 0 1px 4px rgba(0, 0, 0, 0.9);
       ">
         ${processedText}
       </div>
