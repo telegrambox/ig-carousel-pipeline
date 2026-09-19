@@ -435,8 +435,16 @@
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-gray-400 mb-1">Image Search Keyword OR Image URL</label>
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Primary Image Search Keyword OR Image URL</label>
                 <input type="text" id="editModalImageEntity" class="w-full bg-gray-800 border border-gray-700 rounded-md py-1.5 px-2.5 text-xs text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Police van OR https://...">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1 flex items-center justify-between">
+                    <span class="text-indigo-300 font-semibold">🛡️ Backup Image URL (Optional)</span>
+                    <button type="button" onclick="swapModalUrls()" class="text-[10px] text-blue-400 hover:underline">Swap with Primary</button>
+                </label>
+                <input type="text" id="editModalBackupImageUrl" class="w-full bg-gray-800 border border-gray-700 rounded-md py-1.5 px-2.5 text-xs text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. https://secondary-source.com/photo.jpg">
             </div>
 
             <div>
@@ -714,9 +722,16 @@
                             <input type="text" id="bpSubtext_${idx}" value="${slide.subtext || ''}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-gray-400 mb-0.5">Main Background Keyword OR Image URL</label>
-                            <input type="text" id="bpImageEntity_${idx}" value="${slide.imageUrl || slide.imageEntity || ''}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. Delhi University OR https://...">
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Primary Visual Keyword or Image URL</label>
+                            <input type="text" id="bpImageEntity_${idx}" value="${slide.imageUrl || slide.imageEntity || ''}" oninput="handleImageEntityInput(${idx})" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. Delhi University OR https://...">
                         </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-gray-400 mb-0.5 flex items-center justify-between">
+                            <span class="text-indigo-300 font-semibold">🛡️ Backup Image URL (Auto-tried if primary fails & ready for 1-click swap)</span>
+                            <span class="text-[9px] text-gray-500">Separated by space in prompt or pasted here</span>
+                        </label>
+                        <input type="text" id="bpBackupImageUrl_${idx}" value="${slide.backupImageUrl || ''}" class="w-full bg-gray-900 border border-gray-700/80 rounded px-2 py-1 text-xs text-gray-300" placeholder="e.g. https://backup-source.com/photo.jpg">
                     </div>
                     ${idx === 0 ? (
                         (copyData.template === 'daily_news' || currentTemplate === 'daily_news') ? `
@@ -832,6 +847,7 @@
                     subtext: isDaily ? "" : (i === slideCount - 1 ? "The bottom line | READ CAPTION" : "Inside details | SWIPE"),
                     imageEntity: "News",
                     imageUrl: "",
+                    backupImageUrl: "",
                     keywordSuggestions: ["News", "Event"]
                 });
             }
@@ -839,7 +855,22 @@
             renderBlueprint(currentCopyData);
         }
 
-        // Smart ChatGPT Paste Parser
+        // Live input auto-split: If user pastes two URLs in the primary box, move 2nd to backup box
+        function handleImageEntityInput(idx) {
+            const el = document.getElementById(`bpImageEntity_${idx}`);
+            if (!el) return;
+            const val = el.value.trim();
+            const urls = val.match(/https?:\/\/[^\s"'>,;|]+/gi);
+            if (urls && urls.length > 1) {
+                el.value = urls[0];
+                const backupEl = document.getElementById(`bpBackupImageUrl_${idx}`);
+                if (backupEl && !backupEl.value) {
+                    backupEl.value = urls[1];
+                }
+            }
+        }
+
+        // Smart ChatGPT Paste Parser (Supports Primary & Backup URLs)
         function parseSmartPaste() {
             const raw = document.getElementById('smartPasteInput').value.trim();
             if (!raw) return;
@@ -860,23 +891,48 @@
                 let subtext = isDaily ? "" : (idx === slideBlocks.length - 1 ? "The bottom line | READ CAPTION" : "Inside details | SWIPE");
                 let imageEntity = "News";
                 let imageUrl = "";
+                let backupImageUrl = "";
+
+                // Find all URLs in this slide block
+                const blockUrls = cleanBlock.match(/https?:\/\/[^\s"'>,;|]+/gi) || [];
 
                 lines.forEach(line => {
-                    if (/^(?:image|keyword|visual|photo|bg|background)\s*[:\-=\.]\s*/i.test(line)) {
-                        let rawImg = line.replace(/^(?:image|keyword|visual|photo|bg|background)\s*[:\-=\.]\s*/i, '').trim();
-                        const uMatch = rawImg.match(/https?:\/\/[^\s"'>]+/i);
-                        if (uMatch) {
-                            imageUrl = uMatch[0];
-                            imageEntity = uMatch[0];
+                    if (/^(?:image|keyword|visual|photo|bg|background|img)\s*[:\-=\.]\s*/i.test(line)) {
+                        let rawImg = line.replace(/^(?:image|keyword|visual|photo|bg|background|img)\s*[:\-=\.]\s*/i, '').trim();
+                        const urlsInLine = rawImg.match(/https?:\/\/[^\s"'>,;|]+/gi) || [];
+                        if (urlsInLine.length > 0) {
+                            imageUrl = urlsInLine[0];
+                            if (urlsInLine.length > 1) {
+                                backupImageUrl = urlsInLine[1];
+                            }
                         } else {
                             imageEntity = rawImg.replace(/^["']|["']$/g, '').trim();
+                        }
+                    } else if (/^(?:backup|alt|secondary|fallback)\s*(?:image|url|img|photo|visual|link)?\s*[:\-=\.]\s*/i.test(line)) {
+                        let rawBackup = line.replace(/^(?:backup|alt|secondary|fallback)\s*(?:image|url|img|photo|visual|link)?\s*[:\-=\.]\s*/i, '').trim();
+                        const bUrls = rawBackup.match(/https?:\/\/[^\s"'>,;|]+/gi) || [];
+                        if (bUrls.length > 0) {
+                            backupImageUrl = bUrls[0];
                         }
                     } else if (/^(?:subtext|note|cta)\s*[:\-=\.]\s*/i.test(line)) {
                         subtext = line.replace(/^(?:subtext|note|cta)\s*[:\-=\.]\s*/i, '').trim();
                     } else {
-                        text += (text ? " " : "") + line;
+                        // Check if line is just a bare URL
+                        const bareUrls = line.match(/^https?:\/\/[^\s"'>,;|]+$/i);
+                        if (bareUrls) {
+                            if (!imageUrl) imageUrl = bareUrls[0];
+                            else if (!backupImageUrl && bareUrls[0] !== imageUrl) backupImageUrl = bareUrls[0];
+                        } else {
+                            text += (text ? " " : "") + line;
+                        }
                     }
                 });
+
+                // If block contained multiple URLs but backup was not assigned yet
+                if (blockUrls.length > 1 && !backupImageUrl) {
+                    const second = blockUrls.find(u => u !== imageUrl);
+                    if (second) backupImageUrl = second;
+                }
 
                 // Auto highlight first 2-4 key words if not already highlighted
                 if (isDaily) {
@@ -895,7 +951,7 @@
                     }
                 }
 
-                // If user supplied a URL, derive a clean fallback keyword from the headline
+                // Clean authentic topic keyword derived from headline
                 let fallbackKeyword = "News";
                 const cleanHead = text.replace(/<[^>]+>/g, '').replace(/[:\-–|]/g, ' ').trim();
                 const headWords = cleanHead.split(/\s+/).filter(w => w.length > 2 && !/^(the|and|for|with|this|that|from|into|near|amid|across|several|about|after|before|nearly)$/i.test(w));
@@ -915,6 +971,7 @@
                     subtext: subtext.trim(),
                     imageEntity: imageEntity.trim(),
                     imageUrl: imageUrl.trim(),
+                    backupImageUrl: backupImageUrl.trim(),
                     keywordSuggestions: [fallbackKeyword, "News"]
                 });
             });
@@ -933,7 +990,8 @@
             document.getElementById('slideCountVal').textContent = `${parsedSlides.length} Slides`;
 
             renderBlueprint(currentCopyData);
-            log(`Smart parser extracted ${parsedSlides.length} slides from pasted text!`, 'text-green-400');
+            const backupCount = parsedSlides.filter(s => s.backupImageUrl).length;
+            log(`Smart parser extracted ${parsedSlides.length} slides (${backupCount} backup URLs detected)!`, 'text-green-400');
         }
 
         // Step 2: Approve Blueprint & Render Carousel
@@ -970,13 +1028,19 @@
                     const textEl = document.getElementById(`bpText_${idx}`);
                     const subtextEl = document.getElementById(`bpSubtext_${idx}`);
                     const entityEl = document.getElementById(`bpImageEntity_${idx}`);
+                    const backupEl = document.getElementById(`bpBackupImageUrl_${idx}`);
                     if (textEl) slide.text = textEl.value;
                     if (subtextEl) slide.subtext = subtextEl.value;
+                    if (backupEl) slide.backupImageUrl = backupEl.value.trim();
+
                     if (entityEl) {
                         const val = entityEl.value.trim();
-                        const uMatch = val.match(/https?:\/\/[^\s"'>]+/i);
-                        if (uMatch) {
-                            slide.imageUrl = uMatch[0];
+                        const urls = val.match(/https?:\/\/[^\s"'>,;|]+/gi) || [];
+                        if (urls.length > 0) {
+                            slide.imageUrl = urls[0];
+                            if (urls.length > 1 && !slide.backupImageUrl) {
+                                slide.backupImageUrl = urls[1];
+                            }
                             // Clean fallback keyword from headline
                             const cleanHead = (slide.text || "").replace(/<[^>]+>/g, '').replace(/[:\-–|]/g, ' ').trim();
                             const headWords = cleanHead.split(/\s+/).filter(w => w.length > 2 && !/^(the|and|for|with|this|that|from|into|near|amid|across|several|about|after|before|nearly)$/i.test(w));
@@ -1254,6 +1318,11 @@
                                 <button onclick="openCoverSwapper()" class="col-span-2 bg-yellow-500 hover:bg-yellow-600 text-black text-xs font-bold py-1.5 px-2 rounded shadow transition flex items-center justify-center gap-1.5">
                                     <span>🧩 Swap Cover Badges & Cutouts</span>
                                 </button>
+                                ${slideData.backupImageUrl ? `
+                                    <button onclick="switchToBackupImage(${idx})" id="switchBackupBtn_${idx}" class="col-span-2 bg-gradient-to-r from-purple-950/80 to-indigo-950/80 hover:from-purple-900 hover:to-indigo-900 text-indigo-300 text-[11px] font-bold py-1.5 px-2 rounded border border-indigo-700/60 transition flex items-center justify-center gap-1.5 shadow">
+                                        <span>🔄 Switch to Backup Image</span>
+                                    </button>
+                                ` : ''}
                                 <button onclick="retrySlideImage(${idx})" id="retryBtn_${idx}" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-[11px] py-1.5 px-2 rounded border border-gray-700 transition flex items-center justify-center gap-1">
                                     <span>🔄 Re-render</span>
                                 </button>
@@ -1261,6 +1330,11 @@
                                     <span>✏ Edit Text</span>
                                 </button>
                             ` : `
+                                ${slideData.backupImageUrl ? `
+                                    <button onclick="switchToBackupImage(${idx})" id="switchBackupBtn_${idx}" class="col-span-2 bg-gradient-to-r from-purple-950/80 to-indigo-950/80 hover:from-purple-900 hover:to-indigo-900 text-indigo-300 text-[11px] font-bold py-1.5 px-2 rounded border border-indigo-700/60 transition flex items-center justify-center gap-1.5 shadow">
+                                        <span>🔄 Switch to Backup Image</span>
+                                    </button>
+                                ` : ''}
                                 <button onclick="retrySlideImage(${idx})" id="retryBtn_${idx}" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-[11px] py-1.5 px-2 rounded border border-gray-700 transition flex items-center justify-center gap-1">
                                     <span>🔄 Retry Photo</span>
                                 </button>
@@ -1275,6 +1349,81 @@
             });
 
             resultsArea.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Option 2: Instant 1-Click Switch to Backup Image for Slide X
+        async function switchToBackupImage(idx) {
+            const slideData = currentCopyData?.slides[idx];
+            if (!slideData || !slideData.backupImageUrl) return;
+
+            const btn = document.getElementById(`switchBackupBtn_${idx}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<span>⏳ Swapping image...</span>`;
+            }
+
+            const currentPrimary = slideData.imageUrl || slideData.imageEntity;
+            const backupUrl = slideData.backupImageUrl;
+
+            // Swap primary and backup
+            slideData.imageUrl = backupUrl;
+            slideData.imageEntity = backupUrl;
+            slideData.backupImageUrl = currentPrimary;
+
+            log(`Switching Slide ${idx + 1} to backup visual: ${backupUrl.substring(0, 40)}...`, 'text-blue-400');
+            document.getElementById('logStatus').textContent = `Swapping Slide ${idx + 1}...`;
+
+            try {
+                const res = await fetch('/api/regenerate-slide', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        slideIndex: idx,
+                        slideData: slideData,
+                        channelName: document.getElementById('channelName').value.trim() || currentCopyData?.channelName || '1affairs'
+                    })
+                });
+
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Failed to re-render slide');
+
+                // Update image in DOM with cache buster
+                const img = document.getElementById(`slideImg_${idx}`);
+                if (img) img.src = `/output/${data.slideFile}?t=${Date.now()}`;
+
+                const badge = document.getElementById(`keywordBadge_${idx}`);
+                if (badge) badge.textContent = slideData.imageUrl || slideData.imageEntity;
+
+                log(`Slide ${idx + 1} updated to backup visual successfully!`, 'text-green-400');
+                document.getElementById('logStatus').textContent = 'Ready';
+
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<span>🔄 Revert to Photo 1</span>`;
+                }
+            } catch (err) {
+                log(`Failed to switch slide visual: ${err.message}`, 'text-red-400');
+                document.getElementById('logStatus').textContent = 'Error';
+                // Rollback swap
+                slideData.imageUrl = currentPrimary;
+                slideData.imageEntity = currentPrimary;
+                slideData.backupImageUrl = backupUrl;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<span>🔄 Switch to Backup Image</span>`;
+                }
+            }
+        }
+
+        // Swap primary and backup inside Edit Slide modal
+        function swapModalUrls() {
+            const p = document.getElementById('editModalImageEntity');
+            const b = document.getElementById('editModalBackupImageUrl');
+            if (p && b) {
+                const temp = p.value;
+                p.value = b.value;
+                b.value = temp;
+            }
         }
 
         // Cover Component Swapper Controls (Daily News)
@@ -1468,6 +1617,7 @@
             document.getElementById('editModalText').value = slide.text || '';
             document.getElementById('editModalSubtext').value = slide.subtext || '';
             document.getElementById('editModalImageEntity').value = slide.imageUrl || slide.imageEntity || '';
+            document.getElementById('editModalBackupImageUrl').value = slide.backupImageUrl || '';
             document.getElementById('editModalFileInput').value = '';
 
             // Slide 1 Hero Addons Section
@@ -1537,6 +1687,9 @@
                     }
                 } else {
                     const imgEntityVal = document.getElementById('editModalImageEntity').value.trim();
+                    const backupVal = document.getElementById('editModalBackupImageUrl')?.value.trim() || '';
+                    slide.backupImageUrl = backupVal;
+
                     if (imgEntityVal.startsWith('http://') || imgEntityVal.startsWith('https://')) {
                         slide.imageUrl = imgEntityVal;
                     } else if (imgEntityVal) {

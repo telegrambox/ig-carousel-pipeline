@@ -167,11 +167,14 @@ async function renderFromCopyData(copyData, options = {}) {
                 fallbackKeyword = words.slice(0, 3).join(' ') || "India";
             }
 
+            const backupUrl = slide.backupImageUrl || null;
             const isDirectUrl = targetImageOrKeyword.startsWith('http://') || targetImageOrKeyword.startsWith('https://');
-            const displayLabel = isDirectUrl ? `direct URL (${targetImageOrKeyword.substring(0, 40)}...)` : `'${targetImageOrKeyword}'`;
+            const displayLabel = isDirectUrl 
+                ? `direct URL (${targetImageOrKeyword.substring(0, 35)}...)${backupUrl ? ' [+ Backup URL]' : ''}` 
+                : `'${targetImageOrKeyword}'`;
 
             onProgress(`[Story Slide ${idx + 1}/${totalSlides}] Fetching visual via ${displayLabel}...`);
-            const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, idx + 1, fallbackKeyword);
+            const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, idx + 1, fallbackKeyword, backupUrl);
             slide.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slide.imageUrl || "");
             secondaryImgPaths.push(slide.bgImagePath);
             onProgress(`[Story Slide ${idx + 1}/${totalSlides}] Visual ready.`);
@@ -302,11 +305,14 @@ async function renderFromCopyData(copyData, options = {}) {
             fallbackKeyword = words.slice(0, 3).join(' ') || "News";
         }
 
+        const backupUrl = slide.backupImageUrl || null;
         const isDirectUrl = targetImageOrKeyword.startsWith('http://') || targetImageOrKeyword.startsWith('https://');
-        const displayLabel = isDirectUrl ? `direct URL (${targetImageOrKeyword.substring(0, 40)}...)` : `'${targetImageOrKeyword}'`;
+        const displayLabel = isDirectUrl 
+            ? `direct URL (${targetImageOrKeyword.substring(0, 35)}...)${backupUrl ? ' [+ Backup URL]' : ''}` 
+            : `'${targetImageOrKeyword}'`;
 
         onProgress(`[Slide ${idx + 1}/${totalSlides}] Fetching visual via ${displayLabel}...`);
-        const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, idx + 1, fallbackKeyword);
+        const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, idx + 1, fallbackKeyword, backupUrl);
         slide.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slide.imageUrl || "");
 
         slide.channelName = activeChannel;
@@ -348,10 +354,11 @@ async function regenerateSingleSlide(slideIndex, slideData, options = {}) {
     const idx = parseInt(slideIndex) || 0;
     const slideImgPath = path.join(outputDir, `slide_bg_${idx + 1}.jpg`);
     const targetImageOrKeyword = slideData.imageUrl || slideData.imageEntity || "News";
+    const backupUrl = slideData.backupImageUrl || null;
 
-    onProgress(`Re-fetching image for Slide ${idx + 1} ('${targetImageOrKeyword}')...`);
+    onProgress(`Re-fetching image for Slide ${idx + 1} ('${targetImageOrKeyword.substring(0, 35)}'${backupUrl ? ' [+ Backup URL]' : ''})...`);
     const seed = Math.floor(Math.random() * 1000) + (idx + 1) * 73;
-    const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, seed);
+    const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, seed, slideData.imageEntity, backupUrl);
     slideData.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slideData.imageUrl || "");
 
     // Slide 1 Hero Addon handling (Circular badge & Person Cutout for Default template ONLY, or Daily News Cover)

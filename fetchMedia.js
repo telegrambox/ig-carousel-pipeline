@@ -227,21 +227,87 @@ async function fetchWikimediaImage(keyword, savePath) {
  * 2. Supports direct base64 data URIs (data:image/...)
  * 3. Supports local file paths
  * 4. Tries Wikipedia Topic Article lead photo (authentic real-world photo of the topic/event)
- * 5. Tries filtered Wikimedia Commons
- * 6. Falls back to curated photography with unique seed/lock
+/**
+ * Helper to download a direct image URL (or extract og:image if HTML page) with 6s timeout
  */
-async function fetchTopicImage(entityKeyword, savePath, seed = 1, fallbackKeyword = null) {
+async function downloadDirectImageUrl(rawUrl, savePath) {
+    try {
+        const fetchUrl = encodeURI(decodeURI(rawUrl));
+        console.log(`Fetching direct image URL (6s limit): ${fetchUrl}`);
+        const res = await fetch(fetchUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                'Referer': new URL(fetchUrl).origin + '/'
+            },
+            timeout: 6000
+        });
+
+        if (res.ok) {
+            const ctype = (res.headers.get('content-type') || '').toLowerCase();
+            // If it's an image
+            if (ctype.startsWith('image/')) {
+                const buffer = await res.buffer();
+                if (buffer && buffer.length > 1000) {
+                    fs.writeFileSync(savePath, buffer);
+                    console.log(`Saved direct URL image (${buffer.length} bytes) to ${savePath}`);
+                    return savePath;
+                }
+            } else if (ctype.includes('text/html')) {
+                // It's a webpage! Try to extract og:image
+                console.log(`URL returned HTML, searching for og:image meta tag...`);
+                const html = await res.text();
+                const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                                html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+                if (ogMatch && ogMatch[1]) {
+                    const ogUrl = ogMatch[1].startsWith('//') ? 'https:' + ogMatch[1] : ogMatch[1];
+                    console.log(`Found og:image: ${ogUrl}, downloading...`);
+                    const ogRes = await fetch(ogUrl, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                            'Accept': 'image/*,*/*'
+                        },
+                        timeout: 4000
+                    });
+                    if (ogRes.ok) {
+                        const ogBuf = await ogRes.buffer();
+                        if (ogBuf && ogBuf.length > 1000) {
+                            fs.writeFileSync(savePath, ogBuf);
+                            console.log(`Saved og:image to ${savePath}`);
+                            return savePath;
+                        }
+                    }
+                }
+            }
+        } else {
+            console.warn(`Direct image URL responded with HTTP ${res.status}: ${rawUrl}`);
+        }
+    } catch (err) {
+        console.warn(`Direct URL request error for '${rawUrl}': ${err.message}`);
+    }
+    return null;
+}
+
+/**
+ * Intelligent Multi-Tier Media Acquisition:
+ * 1. Direct Primary URL (if provided)
+ * 2. Direct Backup URL (if provided and Primary URL fails)
+ * 3. Exact Wikipedia topic photo
+ * 4. Curated Wikimedia Commons authentic photo
+ * 5. Generic photography fallback
+ */
+async function fetchTopicImage(entityKeyword, savePath, seed = 1, fallbackKeyword = null, backupUrl = null) {
     if (!entityKeyword && !fallbackKeyword) return null;
     let cleanEntity = String(entityKeyword || fallbackKeyword || '').trim().replace(/^["']|["']$/g, '').trim();
 
-    // Determine clean search query in case direct URL fails
+    // Determine clean search query in case direct URLs fail
     let topicQuery = "";
-    if (fallbackKeyword && !fallbackKeyword.startsWith('http')) {
+    if (fallbackKeyword && typeof fallbackKeyword === 'string' && fallbackKeyword.trim().length > 0 && !fallbackKeyword.startsWith('http')) {
         topicQuery = String(fallbackKeyword).trim();
     } else if (cleanEntity && !cleanEntity.startsWith('http')) {
         topicQuery = cleanEntity;
     } else {
-        // Try extracting readable keywords from the URL slug
+        // Try extracting readable keywords from URL slug
         try {
             const urlObj = new URL(cleanEntity);
             const slug = urlObj.pathname.split('/').filter(Boolean).pop() || '';
@@ -251,66 +317,33 @@ async function fetchTopicImage(entityKeyword, savePath, seed = 1, fallbackKeywor
     }
     if (!topicQuery) topicQuery = "India News";
 
-    // 1. Direct web image URL (handles surrounding spaces, quotes, or markdown)
-    const urlMatch = cleanEntity.match(/https?:\/\/[^\s"'>]+/i);
-    if (urlMatch) {
-        const rawUrl = urlMatch[0];
-        try {
-            const fetchUrl = encodeURI(decodeURI(rawUrl));
-            console.log(`Fetching direct image URL (6s limit): ${fetchUrl}`);
-            const res = await fetch(fetchUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-                    'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-                    'Referer': new URL(fetchUrl).origin + '/'
-                },
-                timeout: 6000
-            });
+    // 1. Direct web image URLs (Primary and Optional Backup)
+    const entityUrls = cleanEntity.match(/https?:\/\/[^\s"'>,;|]+/gi) || [];
+    const primaryUrl = entityUrls[0] || (cleanEntity.startsWith('http') ? cleanEntity : null);
+    const secondaryUrl = backupUrl || entityUrls[1] || null;
 
-            if (res.ok) {
-                const ctype = (res.headers.get('content-type') || '').toLowerCase();
-                // If it's an image
-                if (ctype.startsWith('image/')) {
-                    const buffer = await res.buffer();
-                    if (buffer && buffer.length > 1000) {
-                        fs.writeFileSync(savePath, buffer);
-                        console.log(`Saved direct URL image (${buffer.length} bytes) to ${savePath}`);
-                        return savePath;
-                    }
-                } else if (ctype.includes('text/html')) {
-                    // It's a webpage! Try to extract og:image
-                    console.log(`URL returned HTML, searching for og:image meta tag...`);
-                    const html = await res.text();
-                    const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
-                                    html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-                    if (ogMatch && ogMatch[1]) {
-                        const ogUrl = ogMatch[1].startsWith('//') ? 'https:' + ogMatch[1] : ogMatch[1];
-                        console.log(`Found og:image: ${ogUrl}, downloading...`);
-                        const ogRes = await fetch(ogUrl, {
-                            headers: {
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                                'Accept': 'image/*,*/*'
-                            },
-                            timeout: 4000
-                        });
-                        if (ogRes.ok) {
-                            const ogBuf = await ogRes.buffer();
-                            if (ogBuf && ogBuf.length > 1000) {
-                                fs.writeFileSync(savePath, ogBuf);
-                                console.log(`Saved og:image to ${savePath}`);
-                                return savePath;
-                            }
-                        }
-                    }
-                }
-            } else {
-                console.warn(`Direct image URL responded with HTTP ${res.status}: ${rawUrl}`);
-            }
-        } catch (err) {
-            console.warn(`Direct URL request error for '${rawUrl}': ${err.message}`);
+    if (primaryUrl) {
+        console.log(`Attempting Primary URL: ${primaryUrl}`);
+        const primarySaved = await downloadDirectImageUrl(primaryUrl, savePath);
+        if (primarySaved) {
+            return primarySaved;
         }
-        console.log(`Direct image URL unavailable. Falling back to authentic photo search for '${topicQuery}'...`);
+
+        console.warn(`Primary URL failed or unavailable: ${primaryUrl}`);
+
+        if (secondaryUrl && secondaryUrl !== primaryUrl) {
+            console.log(`Attempting Backup URL: ${secondaryUrl}`);
+            const backupSaved = await downloadDirectImageUrl(secondaryUrl, savePath);
+            if (backupSaved) {
+                console.log(`Backup URL succeeded! Saved to ${savePath}`);
+                return backupSaved;
+            }
+            console.warn(`Backup URL also failed: ${secondaryUrl}`);
+        }
+
+        console.log(`Direct image URLs unavailable. Falling back to authentic photo search for '${topicQuery}'...`);
     }
+
 
     // 2. Direct data URI (base64)
     if (cleanEntity.startsWith("data:image/")) {
