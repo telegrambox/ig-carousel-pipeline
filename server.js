@@ -129,7 +129,7 @@ app.post('/api/regenerate-slide', async (req, res) => {
  */
 app.post('/api/upload-image', (req, res) => {
     try {
-        const { slideIndex, imageData } = req.body;
+        const { slideIndex, imageData, target = 'background' } = req.body;
         if (!imageData) {
             return res.status(400).json({ success: false, error: 'No image data provided' });
         }
@@ -140,16 +140,30 @@ app.post('/api/upload-image', (req, res) => {
         }
 
         const idx = parseInt(slideIndex) || 0;
-        const filename = `custom_slide_${idx + 1}.jpg`;
-        const filePath = path.join(outputDir, filename);
+        let filename;
+        if (target === 'circle') {
+            filename = 'circle.jpg';
+        } else if (target === 'cutout') {
+            filename = 'person_raw.jpg';
+        } else {
+            filename = `custom_slide_${idx + 1}.jpg`;
+        }
 
+        const filePath = path.join(outputDir, filename);
         const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
         fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
 
+        // If target is cutout, generate transparent PNG using rembg
+        if (target === 'cutout') {
+            const { removeBackground } = require('./fetchMedia');
+            const cutoutPath = path.join(outputDir, 'person_cutout.png');
+            removeBackground(filePath, cutoutPath);
+        }
+
         res.json({
             success: true,
-            imageUrl: `/output/${filename}?t=${Date.now()}`,
-            localPath: filePath
+            imageUrl: `/output/${(target === 'cutout') ? 'person_cutout.png' : filename}?t=${Date.now()}`,
+            localPath: (target === 'cutout') ? path.join(outputDir, 'person_cutout.png') : filePath
         });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });

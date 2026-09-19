@@ -11,41 +11,99 @@ function resetUsedMedia() {
 }
 
 /**
- * Fetch a person's portrait from Wikipedia
+ * Fetch a person's portrait from Wikipedia (or direct URL/file)
  */
 async function fetchWikipediaImage(personName, savePath) {
     if (!personName) return null;
+    const cleanName = String(personName).trim();
+
+    // 1. Direct Web URL
+    if (cleanName.startsWith("http://") || cleanName.startsWith("https://")) {
+        try {
+            console.log(`Downloading direct person portrait URL: ${cleanName}`);
+            const res = await fetch(cleanName, { headers: { 'User-Agent': '1affairs-pipeline/2.0' } });
+            if (res.ok) {
+                const buffer = await res.buffer();
+                fs.writeFileSync(savePath, buffer);
+                return savePath;
+            }
+        } catch (e) {
+            console.warn("Direct person image download failed:", e.message);
+        }
+    }
+
+    // 2. Direct Base64 Data URI
+    if (cleanName.startsWith("data:image/")) {
+        try {
+            const base64Data = cleanName.replace(/^data:image\/\w+;base64,/, "");
+            fs.writeFileSync(savePath, Buffer.from(base64Data, 'base64'));
+            return savePath;
+        } catch (e) {
+            console.warn("Writing person data URI failed:", e.message);
+        }
+    }
+
+    // 3. Direct Local File Path
+    if (cleanName.startsWith("file:///") || fs.existsSync(cleanName)) {
+        try {
+            let localPath = cleanName.startsWith("file:///") ? cleanName.replace(/^file:\/\/\/?/, '') : cleanName;
+            if (process.platform === "win32" && cleanName.startsWith("file:///")) {
+                localPath = localPath.replace(/^\/([a-zA-Z]:)/, '$1');
+            }
+            if (fs.existsSync(localPath)) {
+                fs.copyFileSync(localPath, savePath);
+                return savePath;
+            }
+        } catch (e) {
+            console.warn("Copying person local file failed:", e.message);
+        }
+    }
+
+    // 4. Multi-result Wikipedia search with best-match token scoring
     try {
-        console.log(`Searching Wikipedia for portrait of '${personName}'...`);
-        const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(personName)}&gsrlimit=1&prop=pageimages&pithumbsize=1200&format=json`;
+        console.log(`Searching Wikipedia for portrait of '${cleanName}'...`);
+        const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(cleanName)}&gsrlimit=5&prop=pageimages&pithumbsize=1200&format=json`;
         const res = await fetch(url, {
             headers: { 'User-Agent': '1affairs-pipeline/2.0 (contact@1affairs.com)' }
         });
         const data = await res.json();
-        if (!data.query || !data.query.pages) {
-            console.log(`No Wikipedia page found for ${personName}`);
-            return null;
-        }
-        
-        const pages = Object.values(data.query.pages);
-        const imageUrl = pages[0]?.thumbnail?.source;
-        if (!imageUrl) {
-            console.log(`No thumbnail image on Wikipedia for ${personName}`);
-            return null;
-        }
+        if (data.query && data.query.pages) {
+            const pages = Object.values(data.query.pages);
+            const queryTokens = cleanName.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+            
+            let bestPage = null;
+            let bestScore = -1;
 
-        console.log(`Found Wikipedia portrait URL: ${imageUrl}`);
-        const imgRes = await fetch(imageUrl, {
-            headers: { 'User-Agent': '1affairs-pipeline/2.0 (contact@1affairs.com)' }
-        });
-        const buffer = await imgRes.buffer();
-        fs.writeFileSync(savePath, buffer);
-        console.log(`Saved person image to ${savePath}`);
-        return savePath;
+            for (const page of pages) {
+                if (!page.thumbnail?.source) continue;
+                const titleLower = (page.title || "").toLowerCase();
+                const score = queryTokens.filter(t => titleLower.includes(t)).length;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestPage = page;
+                }
+            }
+
+            if (!bestPage && pages[0]?.thumbnail?.source) {
+                bestPage = pages[0];
+            }
+
+            if (bestPage && bestPage.thumbnail?.source) {
+                const imageUrl = bestPage.thumbnail.source;
+                console.log(`Found Wikipedia portrait from '${bestPage.title}': ${imageUrl}`);
+                const imgRes = await fetch(imageUrl, {
+                    headers: { 'User-Agent': '1affairs-pipeline/2.0 (contact@1affairs.com)' }
+                });
+                const buffer = await imgRes.buffer();
+                fs.writeFileSync(savePath, buffer);
+                console.log(`Saved person image to ${savePath}`);
+                return savePath;
+            }
+        }
     } catch (err) {
-        console.error(`Error fetching Wikipedia image for ${personName}:`, err.message);
-        return null;
+        console.error(`Error fetching Wikipedia image for ${cleanName}:`, err.message);
     }
+    return null;
 }
 
 /**
@@ -198,10 +256,10 @@ async function fetchTopicImage(entityKeyword, savePath, seed = 1) {
     }
 
     // 3. Direct local file path
-    if (cleanEntity.startsWith("file:///")) {
+    if (cleanEntity.startsWith("file:///") || fs.existsSync(cleanEntity)) {
         try {
-            let localPath = cleanEntity.replace(/^file:\/\/\/?/, '');
-            if (process.platform === "win32") {
+            let localPath = cleanEntity.startsWith("file:///") ? cleanEntity.replace(/^file:\/\/\/?/, '') : cleanEntity;
+            if (process.platform === "win32" && cleanEntity.startsWith("file:///")) {
                 localPath = localPath.replace(/^\/([a-zA-Z]:)/, '$1');
             }
             if (fs.existsSync(localPath)) {

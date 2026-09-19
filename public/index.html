@@ -253,6 +253,45 @@
                 <input type="file" id="editModalFileInput" accept="image/*" class="w-full text-xs text-gray-400 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:bg-gray-800 file:text-gray-300 hover:file:bg-gray-700">
             </div>
 
+            <!-- Hero Addons Section (Slide 1 Only) -->
+            <div id="editModalSlide1Addons" class="hidden p-3.5 bg-gray-800/80 border border-indigo-500/40 rounded-lg space-y-3">
+                <div class="flex items-center justify-between border-b border-gray-700/60 pb-1.5">
+                    <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Slide 1 Hero Visual Addons</span>
+                </div>
+
+                <!-- Circular Badge Inset -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-semibold text-gray-200">Circular Badge Inset Visual</label>
+                        <label class="text-[11px] text-gray-400 flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" id="editModalShowCircle" checked class="rounded text-blue-500">
+                            <span>Show Badge</span>
+                        </label>
+                    </div>
+                    <input type="text" id="editModalCircleKeyword" placeholder="Keyword or URL (e.g. Samrat Choudhary or https://...)" class="w-full bg-gray-900 border border-gray-700 rounded py-1.5 px-2.5 text-xs text-gray-100">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-gray-500">Or upload:</span>
+                        <input type="file" id="editModalCircleFile" accept="image/*" class="text-[11px] text-gray-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-gray-700 file:text-gray-300">
+                    </div>
+                </div>
+
+                <!-- Person Portrait Cutout -->
+                <div class="space-y-1.5 border-t border-gray-700/60 pt-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-semibold text-gray-200">Person Portrait Cutout</label>
+                        <label class="text-[11px] text-gray-400 flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" id="editModalShowCutout" checked class="rounded text-blue-500">
+                            <span>Show Cutout</span>
+                        </label>
+                    </div>
+                    <input type="text" id="editModalPersonName" placeholder="Person Name or URL (e.g. Samrat Choudhary or https://...)" class="w-full bg-gray-900 border border-gray-700 rounded py-1.5 px-2.5 text-xs text-gray-100">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-gray-500">Or upload:</span>
+                        <input type="file" id="editModalCutoutFile" accept="image/*" class="text-[11px] text-gray-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-gray-700 file:text-gray-300">
+                    </div>
+                </div>
+            </div>
+
             <div class="flex justify-end gap-2 pt-2 border-t border-gray-800">
                 <button type="button" onclick="closeEditModal()" class="text-xs text-gray-400 hover:text-white px-3 py-1.5 border border-gray-700 rounded-lg">Cancel</button>
                 <button type="button" id="saveSlideBtn" onclick="saveAndRerenderSlide()" class="text-xs bg-blue-600 hover:bg-blue-700 font-bold text-white px-4 py-1.5 rounded-lg shadow transition">
@@ -424,10 +463,28 @@
                             <input type="text" id="bpSubtext_${idx}" value="${slide.subtext || ''}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-gray-400 mb-0.5">Image Search Keyword OR Image URL</label>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Main Background Keyword OR Image URL</label>
                             <input type="text" id="bpImageEntity_${idx}" value="${slide.imageUrl || slide.imageEntity || ''}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. Delhi University OR https://...">
                         </div>
                     </div>
+                    ${idx === 0 ? `
+                        <div class="p-2.5 bg-indigo-950/40 border border-indigo-500/30 rounded-lg space-y-2 mt-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">Slide 1 Hero Visual Addons</span>
+                                <span class="text-[10px] text-gray-400">(Person Cutout & Circular Badge)</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] text-gray-400 mb-0.5">Person Name OR Cutout URL</label>
+                                    <input type="text" id="bpSlide1PersonName" value="${copyData.personName || ''}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. Samrat Choudhary OR https://..." oninput="if(document.getElementById('bpPersonName')) document.getElementById('bpPersonName').value = this.value">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-gray-400 mb-0.5">Circular Badge Keyword OR URL</label>
+                                    <input type="text" id="bpSlide1CircleKeyword" value="${copyData.circleImageKeyword || ''}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. Samrat Choudhary OR https://..." oninput="if(document.getElementById('bpCircleKeyword')) document.getElementById('bpCircleKeyword').value = this.value">
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
                     <div class="flex items-center gap-2 flex-wrap pt-1">
                         <span class="text-[10px] text-gray-500">Suggestions:</span>
                         ${pills}
@@ -550,8 +607,10 @@
 
             // Collect any edits made in the blueprint fields
             if (currentCopyData && currentCopyData.slides) {
-                currentCopyData.personName = document.getElementById('bpPersonName')?.value || null;
-                currentCopyData.circleImageKeyword = document.getElementById('bpCircleKeyword')?.value || 'News';
+                const pName = document.getElementById('bpSlide1PersonName')?.value ?? document.getElementById('bpPersonName')?.value;
+                const cKey = document.getElementById('bpSlide1CircleKeyword')?.value ?? document.getElementById('bpCircleKeyword')?.value;
+                currentCopyData.personName = pName !== undefined ? pName : currentCopyData.personName;
+                currentCopyData.circleImageKeyword = cKey !== undefined ? cKey : currentCopyData.circleImageKeyword;
                 currentCopyData.caption = document.getElementById('bpCaption')?.value || currentCopyData.caption;
 
                 currentCopyData.slides.forEach((slide, idx) => {
@@ -713,6 +772,21 @@
             document.getElementById('editModalImageEntity').value = slide.imageUrl || slide.imageEntity || '';
             document.getElementById('editModalFileInput').value = '';
 
+            // Slide 1 Hero Addons Section
+            const addonsSec = document.getElementById('editModalSlide1Addons');
+            if (idx === 0) {
+                addonsSec.classList.remove('hidden');
+                document.getElementById('editModalShowCircle').checked = slide.removeCircle !== true;
+                document.getElementById('editModalCircleKeyword').value = slide.circleImageUrl || slide.circleImageKeyword || currentCopyData?.circleImageKeyword || '';
+                document.getElementById('editModalCircleFile').value = '';
+
+                document.getElementById('editModalShowCutout').checked = slide.removeCutout !== true;
+                document.getElementById('editModalPersonName').value = slide.cutoutImageUrl || slide.personName || currentCopyData?.personName || '';
+                document.getElementById('editModalCutoutFile').value = '';
+            } else {
+                addonsSec.classList.add('hidden');
+            }
+
             document.getElementById('editSlideModal').classList.remove('hidden');
         }
 
@@ -732,36 +806,103 @@
             slide.text = document.getElementById('editModalText').value;
             slide.subtext = document.getElementById('editModalSubtext').value;
 
-            // Handle file upload if present
-            const fileInput = document.getElementById('editModalFileInput');
-            if (fileInput.files && fileInput.files[0]) {
-                const reader = new FileReader();
-                reader.onload = async () => {
-                    const uploadRes = await fetch('/api/upload-image', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ slideIndex: idx, imageData: reader.result })
-                    });
-                    const uploadData = await uploadRes.json();
+            const uploadFile = (file, target) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                        try {
+                            const res = await fetch('/api/upload-image', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ slideIndex: idx, imageData: reader.result, target: target })
+                            });
+                            const data = await res.json();
+                            resolve(data);
+                        } catch (e) {
+                            reject(e);
+                        }
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            try {
+                // 1. Handle background image
+                const fileInput = document.getElementById('editModalFileInput');
+                if (fileInput.files && fileInput.files[0]) {
+                    saveBtn.textContent = 'Uploading photo...';
+                    const uploadData = await uploadFile(fileInput.files[0], 'background');
                     if (uploadData.success) {
                         slide.imageUrl = uploadData.localPath;
                         slide.imageEntity = "Custom Photo";
                     }
-                    await executeSlideRerender(idx, slide, saveBtn);
-                };
-                reader.readAsDataURL(fileInput.files[0]);
-                return;
-            }
+                } else {
+                    const imgEntityVal = document.getElementById('editModalImageEntity').value.trim();
+                    if (imgEntityVal.startsWith('http://') || imgEntityVal.startsWith('https://')) {
+                        slide.imageUrl = imgEntityVal;
+                    } else if (imgEntityVal) {
+                        slide.imageEntity = imgEntityVal;
+                        slide.imageUrl = "";
+                    }
+                }
 
-            const imgEntityVal = document.getElementById('editModalImageEntity').value.trim();
-            if (imgEntityVal.startsWith('http://') || imgEntityVal.startsWith('https://')) {
-                slide.imageUrl = imgEntityVal;
-            } else {
-                slide.imageEntity = imgEntityVal;
-                slide.imageUrl = "";
-            }
+                // 2. Handle Slide 1 Hero Addons
+                if (idx === 0) {
+                    // Circular badge
+                    const showCircle = document.getElementById('editModalShowCircle').checked;
+                    slide.removeCircle = !showCircle;
+                    const circleFileInput = document.getElementById('editModalCircleFile');
+                    if (circleFileInput.files && circleFileInput.files[0]) {
+                        saveBtn.textContent = 'Uploading badge...';
+                        const circleUpload = await uploadFile(circleFileInput.files[0], 'circle');
+                        if (circleUpload.success) {
+                            slide.circleImageUrl = circleUpload.localPath;
+                            slide.circleImageKeyword = "";
+                            slide.removeCircle = false;
+                        }
+                    } else {
+                        const circleVal = document.getElementById('editModalCircleKeyword').value.trim();
+                        if (circleVal.startsWith('http://') || circleVal.startsWith('https://')) {
+                            slide.circleImageUrl = circleVal;
+                            slide.circleImageKeyword = "";
+                        } else if (circleVal) {
+                            slide.circleImageKeyword = circleVal;
+                            slide.circleImageUrl = "";
+                        }
+                    }
 
-            await executeSlideRerender(idx, slide, saveBtn);
+                    // Person Cutout
+                    const showCutout = document.getElementById('editModalShowCutout').checked;
+                    slide.removeCutout = !showCutout;
+                    const cutoutFileInput = document.getElementById('editModalCutoutFile');
+                    if (cutoutFileInput.files && cutoutFileInput.files[0]) {
+                        saveBtn.textContent = 'Processing cutout...';
+                        const cutoutUpload = await uploadFile(cutoutFileInput.files[0], 'cutout');
+                        if (cutoutUpload.success) {
+                            slide.cutoutImageUrl = cutoutUpload.localPath;
+                            slide.personName = "";
+                            slide.removeCutout = false;
+                        }
+                    } else {
+                        const personVal = document.getElementById('editModalPersonName').value.trim();
+                        if (personVal.startsWith('http://') || personVal.startsWith('https://')) {
+                            slide.cutoutImageUrl = personVal;
+                            slide.personName = "";
+                        } else if (personVal) {
+                            slide.personName = personVal;
+                            slide.cutoutImageUrl = "";
+                        }
+                    }
+                }
+
+                saveBtn.textContent = 'Rendering...';
+                await executeSlideRerender(idx, slide, saveBtn);
+            } catch (err) {
+                log(`Failed to save/render slide: ${err.message}`, 'text-red-400');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save & Re-render Slide';
+            }
         }
 
         async function executeSlideRerender(idx, slide, saveBtn) {

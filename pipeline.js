@@ -85,18 +85,24 @@ async function renderFromCopyData(copyData, options = {}) {
     }
 
     // A. Fetch secondary circular badge image (for Slide 1)
-    const circleFile = path.join(outputDir, "circle.jpg");
-    const circleKeyword = copyData.circleImageKeyword || copyData.imageEntity || "stock chart";
-    onProgress(`Fetching secondary image for keyword: ${circleKeyword}...`);
-    const circleDownloaded = await fetchTopicImage(circleKeyword, circleFile, 99);
-    const circleUrl = circleDownloaded ? `file:///${circleFile.replace(/\\/g, '/')}` : "";
+    let circleUrl = "";
+    if (!copyData.removeCircle) {
+        const circleTarget = copyData.circleImageUrl || copyData.circleImageKeyword || copyData.imageEntity || "stock chart";
+        if (circleTarget && circleTarget.toLowerCase() !== "none" && circleTarget.toLowerCase() !== "null") {
+            const circleFile = path.join(outputDir, "circle.jpg");
+            onProgress(`Fetching secondary image for keyword: ${circleTarget}...`);
+            const circleDownloaded = await fetchTopicImage(circleTarget, circleFile, 99);
+            circleUrl = circleDownloaded ? `file:///${circleFile.replace(/\\/g, '/')}` : "";
+        }
+    }
 
     // C. Fetch person portrait & remove background (for Slide 1 Hero)
     let cutoutUrl = "";
-    if (copyData.personName && copyData.personName.toLowerCase() !== "none" && copyData.personName.toLowerCase() !== "null") {
-        onProgress(`Fetching authentic portrait for: ${copyData.personName}...`);
+    const personTarget = copyData.cutoutImageUrl || copyData.personName;
+    if (!copyData.removeCutout && personTarget && personTarget.toLowerCase() !== "none" && personTarget.toLowerCase() !== "null") {
+        onProgress(`Fetching authentic portrait for: ${personTarget}...`);
         const rawPersonPath = path.join(outputDir, "person_raw.jpg");
-        const personDownloaded = await fetchWikipediaImage(copyData.personName, rawPersonPath);
+        const personDownloaded = await fetchWikipediaImage(personTarget, rawPersonPath);
         if (personDownloaded) {
             onProgress("Removing background using AI (rembg)...");
             const cutoutPath = path.join(outputDir, "person_cutout.png");
@@ -119,8 +125,8 @@ async function renderFromCopyData(copyData, options = {}) {
         slide.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slide.imageUrl || "");
 
         // Slide 1 has the hero person cutout & circular badge
-        slide.cutoutImagePath = (idx === 0) ? cutoutUrl : "";
-        slide.circleImagePath = (idx === 0) ? circleUrl : "";
+        slide.cutoutImagePath = (idx === 0 && !copyData.removeCutout) ? cutoutUrl : "";
+        slide.circleImagePath = (idx === 0 && !copyData.removeCircle) ? circleUrl : "";
     }
 
     onProgress("Rendering slides with Puppeteer...");
@@ -160,15 +166,53 @@ async function regenerateSingleSlide(slideIndex, slideData, options = {}) {
     const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, seed);
     slideData.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slideData.imageUrl || "");
 
-    // Preserve slide 1 cutout/circle if existing
+    // Slide 1 Hero Addon handling (Circular badge & Person Cutout)
     if (idx === 0) {
-        const cutoutPath = path.join(outputDir, "person_cutout.png");
-        if (fs.existsSync(cutoutPath)) {
-            slideData.cutoutImagePath = `file:///${cutoutPath.replace(/\\/g, '/')}`;
+        // Circular Badge
+        if (slideData.removeCircle) {
+            slideData.circleImagePath = "";
+        } else if (slideData.circleImageUrl || slideData.circleImageKeyword) {
+            const circleTarget = slideData.circleImageUrl || slideData.circleImageKeyword;
+            const circleFile = path.join(outputDir, "circle.jpg");
+            onProgress(`Updating circular badge image ('${circleTarget}')...`);
+            const circleDownloaded = await fetchTopicImage(circleTarget, circleFile, 99);
+            if (circleDownloaded) {
+                slideData.circleImagePath = `file:///${circleFile.replace(/\\/g, '/')}`;
+            }
+        } else if (slideData.circleImagePath) {
+            // Keep existing circle image path
+        } else {
+            const circlePath = path.join(outputDir, "circle.jpg");
+            if (fs.existsSync(circlePath)) {
+                slideData.circleImagePath = `file:///${circlePath.replace(/\\/g, '/')}`;
+            }
         }
-        const circlePath = path.join(outputDir, "circle.jpg");
-        if (fs.existsSync(circlePath)) {
-            slideData.circleImagePath = `file:///${circlePath.replace(/\\/g, '/')}`;
+
+        // Person Cutout
+        if (slideData.removeCutout) {
+            slideData.cutoutImagePath = "";
+        } else if (slideData.cutoutImageUrl || slideData.personName) {
+            const personTarget = slideData.cutoutImageUrl || slideData.personName;
+            if (personTarget.toLowerCase() !== "none" && personTarget.toLowerCase() !== "null") {
+                onProgress(`Updating person portrait for: ${personTarget}...`);
+                const rawPersonPath = path.join(outputDir, "person_raw.jpg");
+                const personDownloaded = await fetchWikipediaImage(personTarget, rawPersonPath);
+                if (personDownloaded) {
+                    onProgress("Generating transparent person cutout...");
+                    const cutoutPath = path.join(outputDir, "person_cutout.png");
+                    const cutoutGenerated = removeBackground(personDownloaded, cutoutPath);
+                    if (cutoutGenerated) {
+                        slideData.cutoutImagePath = `file:///${cutoutPath.replace(/\\/g, '/')}`;
+                    }
+                }
+            }
+        } else if (slideData.cutoutImagePath) {
+            // Keep existing cutout image path
+        } else {
+            const cutoutPath = path.join(outputDir, "person_cutout.png");
+            if (fs.existsSync(cutoutPath)) {
+                slideData.cutoutImagePath = `file:///${cutoutPath.replace(/\\/g, '/')}`;
+            }
         }
     } else {
         slideData.cutoutImagePath = "";
