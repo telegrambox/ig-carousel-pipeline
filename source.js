@@ -25,4 +25,39 @@ async function getTrendingStats(category = 'business') {
     }
 }
 
-module.exports = { getTrendingStats };
+async function getIndiaDailyNewsBulletins() {
+    const urls = [
+        'https://news.google.com/rss/headlines/section/topic/NATION?hl=en-IN&gl=IN&ceid=IN:en',
+        'https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en'
+    ];
+    
+    const allItems = [];
+    const seenTitles = new Set();
+
+    for (const url of urls) {
+        try {
+            const feed = await parser.parseURL(url);
+            for (const item of (feed.items || [])) {
+                // Remove publisher attribution like "- NDTV" or "- The Hindu"
+                const cleanHeadline = (item.title || "").replace(/\s*-\s*[^-]+$/, '').trim();
+                const normKey = cleanHeadline.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (cleanHeadline && !seenTitles.has(normKey)) {
+                    seenTitles.add(normKey);
+                    allItems.push({
+                        headline: cleanHeadline,
+                        fullTitle: item.title,
+                        description: item.contentSnippet || cleanHeadline,
+                        url: item.link,
+                        publishedAt: item.pubDate
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn(`Error fetching RSS feed from ${url}:`, e.message);
+        }
+    }
+
+    return allItems;
+}
+
+module.exports = { getTrendingStats, getIndiaDailyNewsBulletins };

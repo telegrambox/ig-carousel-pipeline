@@ -30,13 +30,13 @@ function createLogger(jobId) {
  * Step 1: Draft Copy / Blueprint Plan (Pre-Generation Review)
  */
 app.post('/api/plan-copy', async (req, res) => {
-    const { topicMode, customTopic, customContext, category, channelName, slideCount } = req.body;
+    const { topicMode, customTopic, customContext, category, channelName, slideCount, template, coverStyle } = req.body;
     const jobId = Date.now().toString();
     jobs.set(jobId, { status: 'running', logs: [] });
     const onProgress = createLogger(jobId);
 
     try {
-        onProgress(`Drafting copy for ${slideCount} slides...`);
+        onProgress(`Drafting copy for ${slideCount} slides (template: ${template || 'default'})...`);
         const result = await planCopy({
             topicMode,
             customTopic,
@@ -44,6 +44,8 @@ app.post('/api/plan-copy', async (req, res) => {
             category,
             channelName,
             slideCount,
+            template,
+            coverStyle,
             onProgress
         });
 
@@ -145,6 +147,16 @@ app.post('/api/upload-image', (req, res) => {
             filename = 'circle.jpg';
         } else if (target === 'cutout') {
             filename = 'person_raw.jpg';
+        } else if (target === 'cutout2') {
+            filename = 'person2_raw.jpg';
+        } else if (target === 'badge1') {
+            filename = 'badge1.jpg';
+        } else if (target === 'badge2') {
+            filename = 'badge2.jpg';
+        } else if (target === 'badge3') {
+            filename = 'badge3.jpg';
+        } else if (target === 'cta') {
+            filename = 'cta_custom.jpg';
         } else {
             filename = `custom_slide_${idx + 1}.jpg`;
         }
@@ -153,17 +165,60 @@ app.post('/api/upload-image', (req, res) => {
         const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
         fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
 
-        // If target is cutout, generate transparent PNG using rembg
+        // If target is cutout or cutout2, generate transparent PNG using rembg
+        let finalLocalPath = filePath;
+        let finalServedName = filename;
+
         if (target === 'cutout') {
             const { removeBackground } = require('./fetchMedia');
             const cutoutPath = path.join(outputDir, 'person_cutout.png');
             removeBackground(filePath, cutoutPath);
+            finalLocalPath = cutoutPath;
+            finalServedName = 'person_cutout.png';
+        } else if (target === 'cutout2') {
+            const { removeBackground } = require('./fetchMedia');
+            const cutout2Path = path.join(outputDir, 'person2_cutout.png');
+            removeBackground(filePath, cutout2Path);
+            finalLocalPath = cutout2Path;
+            finalServedName = 'person2_cutout.png';
         }
 
         res.json({
             success: true,
-            imageUrl: `/output/${(target === 'cutout') ? 'person_cutout.png' : filename}?t=${Date.now()}`,
-            localPath: (target === 'cutout') ? path.join(outputDir, 'person_cutout.png') : filePath
+            imageUrl: `/output/${finalServedName}?t=${Date.now()}`,
+            localPath: finalLocalPath
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * Step 5: Fetch latest 24h Indian news bulletins for Daily News template
+ */
+app.get('/api/daily-news/bulletins', async (req, res) => {
+    try {
+        const { getIndiaDailyNewsBulletins } = require('./source');
+        const bulletins = await getIndiaDailyNewsBulletins();
+        res.json({ success: true, count: bulletins.length, bulletins });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * Step 6: Re-assemble & Re-render Daily News Cover Slide
+ */
+app.post('/api/daily-news/rebuild-cover', async (req, res) => {
+    try {
+        const { coverData, channelName } = req.body;
+        const { rebuildDailyNewsCover } = require('./pipeline');
+        const result = await rebuildDailyNewsCover(coverData, { channelName });
+        res.json({
+            success: true,
+            slideFile: result.slideFile,
+            imageUrl: `/output/slide-1.png?t=${Date.now()}`,
+            coverData: result.coverData
         });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });

@@ -61,6 +61,68 @@
                     </div>
 
                     <form id="pipelineForm" class="space-y-4">
+                        <!-- Template Style Selector -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-semibold text-gray-300">Template Style</label>
+                                <span id="templateBadge" class="text-[10px] bg-blue-900/60 text-blue-300 px-2 py-0.5 rounded border border-blue-700">3:4 (1080×1440)</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button type="button" id="btnTplDefault" onclick="selectTemplate('default')" class="p-2.5 rounded-lg border text-left transition flex flex-col gap-1 bg-blue-600/20 border-blue-500 text-white shadow-sm">
+                                    <span class="text-xs font-bold flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                                        Default
+                                    </span>
+                                    <span class="text-[10px] text-gray-400 leading-tight">1affairs style (Blue, 3:4 portrait)</span>
+                                </button>
+                                <button type="button" id="btnTplDailyNews" onclick="selectTemplate('daily_news')" class="p-2.5 rounded-lg border text-left transition flex flex-col gap-1 bg-gray-800/60 border-gray-700 text-gray-300 hover:border-gray-500">
+                                    <span class="text-xs font-bold flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+                                        Daily News 🇮🇳
+                                    </span>
+                                    <span class="text-[10px] text-gray-400 leading-tight">India 24h round-up (Yellow, 4:5 portrait)</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Daily News Specific Settings -->
+                        <div id="dailyNewsSettings" class="hidden bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-yellow-400 flex items-center gap-1">
+                                    <span>⚡ Daily News Settings</span>
+                                </span>
+                                <span class="text-[10px] text-yellow-300/80 bg-yellow-950/60 px-2 py-0.5 rounded border border-yellow-700/50">4:5 (1080×1350)</span>
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-medium text-gray-300 mb-1">Cover Page Collage Style</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label class="flex items-center gap-1.5 p-1.5 rounded bg-gray-900 border border-gray-700 cursor-pointer text-xs">
+                                        <input type="radio" name="coverStyle" value="styleA" checked class="accent-yellow-400">
+                                        <span class="text-[11px]">Style A (1 Hero + 3 Badges)</span>
+                                    </label>
+                                    <label class="flex items-center gap-1.5 p-1.5 rounded bg-gray-900 border border-gray-700 cursor-pointer text-xs">
+                                        <input type="radio" name="coverStyle" value="styleB" class="accent-yellow-400">
+                                        <span class="text-[11px]">Style B (2 Heroes + 3 Badges)</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="pt-1 border-t border-yellow-500/20">
+                                <label class="flex items-center cursor-pointer select-none">
+                                    <input type="checkbox" id="deferCoverToggle" checked class="w-4 h-4 text-yellow-500 bg-gray-900 border-gray-700 rounded focus:ring-yellow-400">
+                                    <span class="ml-2 text-[11px] font-medium text-yellow-200">Generate Cover AFTER secondary slides</span>
+                                </label>
+                                <p class="text-[10px] text-gray-400 ml-6 mt-0.5">Automatically uses photos from secondary news stories in the Cover's 3 circular badges.</p>
+                            </div>
+
+                            <div class="pt-1">
+                                <button type="button" onclick="previewIndianBulletins()" class="w-full bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 border border-yellow-500/40 text-[11px] font-semibold py-1.5 px-2.5 rounded transition flex items-center justify-center gap-1.5">
+                                    <span>📰 Preview Latest 24h Indian News</span>
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Global Config -->
                         <div class="grid grid-cols-2 gap-3">
                             <div>
@@ -224,6 +286,107 @@
         </div>
     </div>
 
+    <!-- Cover Component Swapper Modal (Daily News) -->
+    <div id="coverSwapperModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-yellow-500/50 rounded-xl max-w-xl w-full p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                <div>
+                    <span class="text-[10px] font-bold text-yellow-400 uppercase tracking-wider bg-yellow-950/60 border border-yellow-800/60 px-2 py-0.5 rounded">Daily News</span>
+                    <h3 class="text-base font-bold text-white mt-1">Cover Component & Badge Swapper</h3>
+                </div>
+                <button onclick="closeCoverSwapper()" class="text-gray-400 hover:text-white text-lg">&times;</button>
+            </div>
+
+            <p class="text-xs text-gray-300">
+                Customize which image goes into which component of the Cover Page. You can assign photos from secondary news stories, atmospheric Indian backgrounds, or upload your own visuals.
+            </p>
+
+            <div class="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                <!-- Cover Background Scene -->
+                <div class="p-3 bg-gray-800/80 rounded-lg border border-gray-700 space-y-1.5">
+                    <label class="block text-xs font-bold text-yellow-400">1. Atmospheric Background Scene</label>
+                    <select id="swapCoverBgSelect" class="w-full bg-gray-900 border border-gray-700 rounded py-1.5 px-2 text-xs text-white">
+                        <!-- Injected -->
+                    </select>
+                </div>
+
+                <!-- Hero Cutout 1 -->
+                <div class="p-3 bg-gray-800/80 rounded-lg border border-gray-700 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-bold text-yellow-400">2. Hero Person Cutout 1 (Left)</label>
+                        <label class="text-[11px] text-gray-400 flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" id="swapCoverShowCutout" checked class="accent-yellow-400">
+                            <span>Show Cutout</span>
+                        </label>
+                    </div>
+                    <input type="text" id="swapCoverCutoutInput" placeholder="Person Name or Image URL (e.g. Narendra Modi or https://...)" class="w-full bg-gray-900 border border-gray-700 rounded py-1.5 px-2.5 text-xs text-white">
+                    <div class="flex items-center gap-2 pt-1">
+                        <span class="text-[10px] text-gray-400">Or upload portrait:</span>
+                        <input type="file" id="swapCoverCutoutFile" accept="image/*" class="text-[11px] text-gray-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-gray-700 file:text-gray-300">
+                    </div>
+                </div>
+
+                <!-- Hero Cutout 2 (Style B) -->
+                <div id="swapCoverCutout2Group" class="hidden p-3 bg-gray-800/80 rounded-lg border border-gray-700 space-y-1.5">
+                    <label class="block text-xs font-bold text-yellow-400">Hero Person Cutout 2 (Right)</label>
+                    <input type="text" id="swapCoverCutout2Input" placeholder="Person 2 Name or Image URL" class="w-full bg-gray-900 border border-gray-700 rounded py-1.5 px-2.5 text-xs text-white">
+                    <div class="flex items-center gap-2 pt-1">
+                        <span class="text-[10px] text-gray-400">Or upload portrait:</span>
+                        <input type="file" id="swapCoverCutout2File" accept="image/*" class="text-[11px] text-gray-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-gray-700 file:text-gray-300">
+                    </div>
+                </div>
+
+                <!-- Circular Badges 1, 2, 3 -->
+                <div class="p-3 bg-gray-800/80 rounded-lg border border-gray-700 space-y-2.5">
+                    <label class="block text-xs font-bold text-yellow-400">3. Circular Badges (Faces / Story Photos)</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                            <span class="block text-[10px] text-gray-400 mb-0.5 font-semibold">Badge 1</span>
+                            <select id="swapBadge1Select" class="w-full bg-gray-900 border border-gray-700 rounded py-1 px-1.5 text-xs text-white">
+                            </select>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] text-gray-400 mb-0.5 font-semibold">Badge 2</span>
+                            <select id="swapBadge2Select" class="w-full bg-gray-900 border border-gray-700 rounded py-1 px-1.5 text-xs text-white">
+                            </select>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] text-gray-400 mb-0.5 font-semibold">Badge 3</span>
+                            <select id="swapBadge3Select" class="w-full bg-gray-900 border border-gray-700 rounded py-1 px-1.5 text-xs text-white">
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-gray-800">
+                <button type="button" onclick="closeCoverSwapper()" class="text-xs text-gray-400 hover:text-white px-3 py-1.5 border border-gray-700 rounded-lg">Cancel</button>
+                <button type="button" id="applyCoverSwapsBtn" onclick="applyCoverSwaps()" class="text-xs bg-yellow-500 hover:bg-yellow-600 font-bold text-black px-4 py-1.5 rounded-lg shadow transition flex items-center gap-1.5">
+                    <span>⚡ Re-assemble Cover Page</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Indian Bulletins Preview Modal -->
+    <div id="bulletinsPreviewModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-yellow-500/50 rounded-xl max-w-2xl w-full p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                <div>
+                    <span class="text-[10px] font-bold text-yellow-400 uppercase tracking-wider bg-yellow-950/60 border border-yellow-800/60 px-2 py-0.5 rounded">Live 24h News</span>
+                    <h3 class="text-base font-bold text-white mt-1">Latest Indian Bulletins</h3>
+                </div>
+                <button onclick="closeBulletinsPreview()" class="text-gray-400 hover:text-white text-lg">&times;</button>
+            </div>
+            <div id="bulletinsListContainer" class="space-y-2 max-h-[400px] overflow-y-auto pr-1 text-xs text-gray-300">
+                Loading bulletins...
+            </div>
+            <div class="flex justify-end pt-2 border-t border-gray-800">
+                <button type="button" onclick="closeBulletinsPreview()" class="text-xs bg-gray-800 hover:bg-gray-700 text-white px-4 py-1.5 rounded-lg border border-gray-700">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Single Slide Modal -->
     <div id="editSlideModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-gray-900 border border-gray-700 rounded-xl max-w-lg w-full p-5 space-y-4 shadow-2xl">
@@ -304,10 +467,61 @@
     <!-- JavaScript Application Logic -->
     <script>
         let currentMode = 'auto'; // 'auto', 'custom', 'direct'
+        let currentTemplate = 'default'; // 'default', 'daily_news'
         let currentCopyData = null;
         let currentBestStory = null;
         let generatedSlideFiles = [];
         let selectedSlideIndices = new Set();
+
+        // Template Selection
+        function selectTemplate(tpl) {
+            currentTemplate = tpl;
+            const btnDefault = document.getElementById('btnTplDefault');
+            const btnDaily = document.getElementById('btnTplDailyNews');
+            const dailySettings = document.getElementById('dailyNewsSettings');
+            const templateBadge = document.getElementById('templateBadge');
+
+            if (tpl === 'daily_news') {
+                btnDaily.className = 'p-2.5 rounded-lg border text-left transition flex flex-col gap-1 bg-yellow-500/20 border-yellow-500 text-white shadow-sm ring-1 ring-yellow-500/50';
+                btnDefault.className = 'p-2.5 rounded-lg border text-left transition flex flex-col gap-1 bg-gray-800/60 border-gray-700 text-gray-300 hover:border-gray-500';
+                dailySettings.classList.remove('hidden');
+                templateBadge.textContent = '4:5 (1080×1350)';
+                templateBadge.className = 'text-[10px] bg-yellow-900/60 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700';
+            } else {
+                btnDefault.className = 'p-2.5 rounded-lg border text-left transition flex flex-col gap-1 bg-blue-600/20 border-blue-500 text-white shadow-sm ring-1 ring-blue-500/50';
+                btnDaily.className = 'p-2.5 rounded-lg border text-left transition flex flex-col gap-1 bg-gray-800/60 border-gray-700 text-gray-300 hover:border-gray-500';
+                dailySettings.classList.add('hidden');
+                templateBadge.textContent = '3:4 (1080×1440)';
+                templateBadge.className = 'text-[10px] bg-blue-900/60 text-blue-300 px-2 py-0.5 rounded border border-blue-700';
+            }
+        }
+
+        async function previewIndianBulletins() {
+            const modal = document.getElementById('bulletinsPreviewModal');
+            const container = document.getElementById('bulletinsListContainer');
+            modal.classList.remove('hidden');
+            container.innerHTML = '<div class="py-4 text-center text-yellow-400">Fetching live Indian national headlines...</div>';
+
+            try {
+                const res = await fetch('/api/daily-news/bulletins');
+                const data = await res.json();
+                if (!data.success || !data.bulletins) throw new Error(data.error || 'Failed to fetch');
+
+                container.innerHTML = data.bulletins.slice(0, 15).map((b, idx) => `
+                    <div class="p-2.5 bg-gray-800/70 rounded border border-gray-700/60 hover:border-yellow-500/40 transition">
+                        <div class="font-bold text-white text-xs">${idx + 1}. ${b.headline}</div>
+                        <div class="text-[11px] text-gray-400 mt-1">${b.description}</div>
+                        <div class="text-[10px] text-yellow-400/80 mt-1">${b.publishedAt || ''}</div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = `<div class="text-red-400">Error loading headlines: ${e.message}</div>`;
+            }
+        }
+
+        function closeBulletinsPreview() {
+            document.getElementById('bulletinsPreviewModal').classList.add('hidden');
+        }
 
         // Mode Switching
         function switchMode(mode) {
@@ -387,7 +601,9 @@
                 customContext: document.getElementById('customContext').value,
                 category: document.getElementById('category').value,
                 channelName: document.getElementById('channelName').value.trim() || '1affairs',
-                slideCount: parseInt(document.getElementById('slideCount').value) || 5
+                slideCount: parseInt(document.getElementById('slideCount').value) || 5,
+                template: currentTemplate,
+                coverStyle: document.querySelector('input[name="coverStyle"]:checked')?.value || 'styleA'
             };
 
             log(`Initiating story breakdown for ${payload.slideCount} slides...`, 'text-blue-400');
@@ -468,7 +684,28 @@
                             <input type="text" id="bpImageEntity_${idx}" value="${slide.imageUrl || slide.imageEntity || ''}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. Delhi University OR https://...">
                         </div>
                     </div>
-                    ${idx === 0 ? `
+                    ${idx === 0 ? (
+                        (copyData.template === 'daily_news' || currentTemplate === 'daily_news') ? `
+                        <div class="p-2.5 bg-yellow-950/40 border border-yellow-500/40 rounded-lg space-y-2 mt-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-bold text-yellow-300 uppercase tracking-wider">Slide 1 Daily News Cover Elements</span>
+                                <span class="text-[10px] text-yellow-300/80">Style: ${copyData.coverStyle || 'styleA'}</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] text-gray-400 mb-0.5">Hero Cutout 1 (Person Name / URL)</label>
+                                    <input type="text" id="bpSlide1PersonName" value="${copyData.personName || ''}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. Narendra Modi OR https://..." oninput="if(document.getElementById('bpPersonName')) document.getElementById('bpPersonName').value = this.value">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-gray-400 mb-0.5">Atmospheric Background Keyword / URL</label>
+                                    <input type="text" id="bpSlide1CircleKeyword" value="${slide.imageUrl || slide.imageEntity || 'India Gate'}" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200" placeholder="e.g. India Gate">
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-yellow-200/70 pt-1">
+                                💡 Badges 1-3 will automatically pull visuals from Slides 2, 3, and 4 upon rendering, with full swap control after review!
+                            </p>
+                        </div>
+                        ` : `
                         <div class="p-2.5 bg-indigo-950/40 border border-indigo-500/30 rounded-lg space-y-2 mt-2">
                             <div class="flex items-center justify-between">
                                 <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">Slide 1 Hero Visual Addons</span>
@@ -485,7 +722,8 @@
                                 </div>
                             </div>
                         </div>
-                    ` : ''}
+                        `
+                    ) : ''}
                     <div class="flex items-center gap-2 flex-wrap pt-1">
                         <span class="text-[10px] text-gray-500">Suggestions:</span>
                         ${pills}
@@ -510,8 +748,10 @@
             const end = textarea.selectionEnd;
             const selectedText = textarea.value.substring(start, end);
             if (selectedText.trim().length > 0) {
-                const replacement = `<span class='highlight'>${selectedText}</span>`;
-                textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+                const tag = (currentCopyData?.template === 'daily_news' || currentTemplate === 'daily_news')
+                    ? `<span class="daily-yellow">${selectedText}</span>`
+                    : `<span class='highlight'>${selectedText}</span>`;
+                textarea.value = textarea.value.substring(0, start) + tag + textarea.value.substring(end);
             }
         }
 
@@ -680,20 +920,24 @@
 
             captionBox.textContent = data.caption || 'No caption generated.';
 
+            const isDailyNews = (currentCopyData?.template === 'daily_news') || (currentTemplate === 'daily_news');
+            const aspectClass = isDailyNews ? 'aspect-[4/5]' : 'aspect-[3/4]';
+
             generatedSlideFiles.forEach((slideFile, idx) => {
                 const slideData = currentCopyData?.slides[idx] || {};
-                const currentEntity = slideData.imageUrl || slideData.imageEntity || "News";
+                const currentEntity = slideData.imageUrl || slideData.imageEntity || (idx === 0 && isDailyNews ? "Cover Collage" : "News");
                 const imgUrl = `/output/${slideFile}?t=${Date.now()}`;
+                const isCover = (idx === 0 && isDailyNews);
 
                 const card = document.createElement('div');
                 card.id = `slideCard_${idx}`;
                 card.className = 'bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-lg flex flex-col transition hover:border-gray-600';
                 card.innerHTML = `
-                    <div class="relative aspect-[3/4] bg-gray-950 overflow-hidden group">
+                    <div class="relative ${aspectClass} bg-gray-950 overflow-hidden group">
                         <img id="slideImg_${idx}" src="${imgUrl}" class="w-full h-full object-cover">
                         <div class="absolute top-2 left-2 flex items-center gap-1.5 bg-black/70 backdrop-blur px-2 py-1 rounded text-[11px] font-bold text-white border border-white/10">
                             <input type="checkbox" onchange="toggleSlideSelect(${idx})" class="rounded text-blue-500">
-                            <span>Slide ${idx + 1}</span>
+                            <span>Slide ${idx + 1}${isCover ? ' (Cover)' : ''}</span>
                         </div>
                         <div class="absolute top-2 right-2">
                             <a href="${imgUrl}" download="${slideFile}" class="bg-black/70 hover:bg-black p-1.5 rounded text-gray-300 hover:text-white transition border border-white/10 flex items-center justify-center">
@@ -703,16 +947,28 @@
                     </div>
                     <div class="p-3 bg-gray-900 border-t border-gray-800 space-y-2 flex-1 flex flex-col justify-between">
                         <div>
-                            <span class="text-[10px] text-gray-500 uppercase tracking-wider block">Image Keyword</span>
-                            <span id="keywordBadge_${idx}" class="text-xs font-semibold text-blue-400 truncate block">${currentEntity}</span>
+                            <span class="text-[10px] text-gray-500 uppercase tracking-wider block">Image / Component</span>
+                            <span id="keywordBadge_${idx}" class="text-xs font-semibold ${isDailyNews ? 'text-yellow-400' : 'text-blue-400'} truncate block">${currentEntity}</span>
                         </div>
                         <div class="grid grid-cols-2 gap-1.5 pt-2 border-t border-gray-800/80">
-                            <button onclick="retrySlideImage(${idx})" id="retryBtn_${idx}" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-[11px] py-1.5 px-2 rounded border border-gray-700 transition flex items-center justify-center gap-1">
-                                <span>🔄 Retry Photo</span>
-                            </button>
-                            <button onclick="openEditModal(${idx})" class="bg-blue-900/40 hover:bg-blue-800 text-blue-300 text-[11px] py-1.5 px-2 rounded border border-blue-700/40 transition flex items-center justify-center gap-1">
-                                <span>✏ Edit Slide</span>
-                            </button>
+                            ${isCover ? `
+                                <button onclick="openCoverSwapper()" class="col-span-2 bg-yellow-500 hover:bg-yellow-600 text-black text-xs font-bold py-1.5 px-2 rounded shadow transition flex items-center justify-center gap-1.5">
+                                    <span>🧩 Swap Cover Badges & Cutouts</span>
+                                </button>
+                                <button onclick="retrySlideImage(${idx})" id="retryBtn_${idx}" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-[11px] py-1.5 px-2 rounded border border-gray-700 transition flex items-center justify-center gap-1">
+                                    <span>🔄 Re-render</span>
+                                </button>
+                                <button onclick="openEditModal(${idx})" class="bg-yellow-900/30 hover:bg-yellow-900/50 text-yellow-300 text-[11px] py-1.5 px-2 rounded border border-yellow-700/40 transition flex items-center justify-center gap-1">
+                                    <span>✏ Edit Text</span>
+                                </button>
+                            ` : `
+                                <button onclick="retrySlideImage(${idx})" id="retryBtn_${idx}" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-[11px] py-1.5 px-2 rounded border border-gray-700 transition flex items-center justify-center gap-1">
+                                    <span>🔄 Retry Photo</span>
+                                </button>
+                                <button onclick="openEditModal(${idx})" class="bg-blue-900/40 hover:bg-blue-800 text-blue-300 text-[11px] py-1.5 px-2 rounded border border-blue-700/40 transition flex items-center justify-center gap-1">
+                                    <span>✏ Edit Slide</span>
+                                </button>
+                            `}
                         </div>
                     </div>
                 `;
@@ -720,6 +976,148 @@
             });
 
             resultsArea.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Cover Component Swapper Controls (Daily News)
+        function openCoverSwapper() {
+            const modal = document.getElementById('coverSwapperModal');
+            const bgSelect = document.getElementById('swapCoverBgSelect');
+            const b1Select = document.getElementById('swapBadge1Select');
+            const b2Select = document.getElementById('swapBadge2Select');
+            const b3Select = document.getElementById('swapBadge3Select');
+            const cutout2Group = document.getElementById('swapCoverCutout2Group');
+
+            const coverSlide = currentCopyData?.slides[0] || {};
+            const coverStyle = coverSlide.coverStyle || document.querySelector('input[name="coverStyle"]:checked')?.value || 'styleA';
+
+            if (coverStyle === 'styleB') {
+                cutout2Group.classList.remove('hidden');
+            } else {
+                cutout2Group.classList.add('hidden');
+            }
+
+            // Options for Background
+            bgSelect.innerHTML = `
+                <option value="${coverSlide.bgImagePath || ''}">Current Cover Background</option>
+                <option value="India Gate">Landmark: India Gate</option>
+                <option value="Rashtrapati Bhavan">Landmark: Rashtrapati Bhavan</option>
+                <option value="Parliament of India">Landmark: Parliament of India</option>
+            `;
+
+            // Secondary story options
+            const secOptions = [];
+            currentCopyData?.slides?.forEach((s, idx) => {
+                if (idx > 0 && idx < currentCopyData.slides.length - 1) {
+                    const cleanText = (s.text || '').replace(/<[^>]+>/g, '').substring(0, 32);
+                    const label = `Slide ${idx + 1}: ${cleanText}...`;
+                    const val = s.bgImagePath || s.imageUrl || '';
+                    if (val) {
+                        secOptions.push({ label, val });
+                        bgSelect.innerHTML += `<option value="${val}">Story ${idx}: (${s.imageEntity || 'Photo'})</option>`;
+                    }
+                }
+            });
+
+            // Populate Badges 1, 2, 3
+            [b1Select, b2Select, b3Select].forEach((selectEl, bIdx) => {
+                const currentBadge = coverSlide.badgeImages?.[bIdx] || '';
+                selectEl.innerHTML = '';
+                if (currentBadge) {
+                    selectEl.innerHTML += `<option value="${currentBadge}">Current Badge ${bIdx + 1}</option>`;
+                }
+                secOptions.forEach(opt => {
+                    selectEl.innerHTML += `<option value="${opt.val}">${opt.label}</option>`;
+                });
+                if (secOptions[bIdx]) {
+                    selectEl.value = currentBadge || secOptions[bIdx].val;
+                }
+            });
+
+            document.getElementById('swapCoverCutoutInput').value = coverSlide.cutoutImageUrl || coverSlide.personName || '';
+            document.getElementById('swapCoverCutoutFile').value = '';
+            document.getElementById('swapCoverShowCutout').checked = coverSlide.removeCutout !== true;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeCoverSwapper() {
+            document.getElementById('coverSwapperModal').classList.add('hidden');
+        }
+
+        async function applyCoverSwaps() {
+            const btn = document.getElementById('applyCoverSwapsBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳ Re-assembling Cover...</span>';
+
+            const coverSlide = currentCopyData?.slides[0];
+            if (!coverSlide) return;
+
+            const bgVal = document.getElementById('swapCoverBgSelect').value;
+            if (bgVal) coverSlide.bgImagePath = bgVal;
+
+            const b1 = document.getElementById('swapBadge1Select').value;
+            const b2 = document.getElementById('swapBadge2Select').value;
+            const b3 = document.getElementById('swapBadge3Select').value;
+            coverSlide.badgeImages = [b1, b2, b3].filter(Boolean);
+
+            const showCutout = document.getElementById('swapCoverShowCutout').checked;
+            coverSlide.removeCutout = !showCutout;
+
+            // Handle Cutout file upload if selected
+            const cutoutFile = document.getElementById('swapCoverCutoutFile').files?.[0];
+            if (cutoutFile) {
+                btn.innerHTML = '<span>Processing portrait cutout...</span>';
+                const uploadRes = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                        try {
+                            const res = await fetch('/api/upload-image', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ slideIndex: 0, imageData: reader.result, target: 'cutout' })
+                            });
+                            resolve(await res.json());
+                        } catch (e) { resolve({ success: false }); }
+                    };
+                    reader.readAsDataURL(cutoutFile);
+                });
+                if (uploadRes.success) {
+                    coverSlide.cutoutImagePath = uploadRes.localPath;
+                }
+            } else {
+                const cVal = document.getElementById('swapCoverCutoutInput').value.trim();
+                if (cVal.startsWith('http://') || cVal.startsWith('https://') || cVal.startsWith('/output/')) {
+                    coverSlide.cutoutImagePath = cVal;
+                } else if (cVal) {
+                    coverSlide.personName = cVal;
+                }
+            }
+
+            try {
+                btn.innerHTML = '<span>Rendering Cover with Puppeteer...</span>';
+                const res = await fetch('/api/daily-news/rebuild-cover', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        coverData: coverSlide,
+                        channelName: document.getElementById('channelName').value.trim() || '1affairs'
+                    })
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Failed to re-assemble cover');
+
+                // Update Cover image in DOM
+                const img0 = document.getElementById('slideImg_0');
+                if (img0) img0.src = `/output/slide-1.png?t=${Date.now()}`;
+                log("Daily News Cover re-assembled and updated successfully!", 'text-green-400');
+                closeCoverSwapper();
+            } catch (err) {
+                alert(`Error rebuilding cover: ${err.message}`);
+                log(`Cover rebuild error: ${err.message}`, 'text-red-400');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>⚡ Re-assemble Cover Page</span>';
+            }
         }
 
         // Retry Single Slide Image

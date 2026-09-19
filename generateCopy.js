@@ -318,4 +318,222 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
     return parsed;
 }
 
-module.exports = { generateCarouselCopy, generatePostCaption, buildStoryFallback, repairTruncatedJson };
+/**
+ * Copy generator for the "Daily News" template:
+ * Slide 1: Cover Page (What Happened in India - Last 24 Hours in 60 Seconds)
+ * Slides 2 to N-1: Distinct Indian news events from the last 24h
+ * Slide N: Final CTA slide
+ */
+async function generateDailyNewsCopy(options = {}) {
+    const {
+        story = {},
+        bulletins = [],
+        channelName = '1affairs',
+        slideCount = 5,
+        coverStyle = 'styleA',
+        topicMode = 'auto'
+    } = options;
+
+    const totalSlides = Math.max(3, Math.min(10, parseInt(slideCount) || 5));
+    const secondaryCount = totalSlides - 2; // e.g. 5 - 2 = 3 secondary slides
+
+    // Prepare story context / bulletin candidates
+    let candidateItems = [];
+    if (Array.isArray(bulletins) && bulletins.length > 0) {
+        candidateItems = bulletins.slice(0, Math.max(secondaryCount, 6));
+    } else if (story.contextText || story.description) {
+        // Split paragraphs or lines from context
+        const rawLines = (story.contextText || story.description)
+            .split(/\n+/)
+            .map(l => l.trim())
+            .filter(l => l.length > 15);
+        if (rawLines.length >= secondaryCount) {
+            candidateItems = rawLines.map(line => ({ headline: line, description: line }));
+        } else {
+            candidateItems = [{ headline: story.headline || "Indian National News", description: story.contextText || story.description || "" }];
+        }
+    } else {
+        candidateItems = [{ headline: story.headline || "National News Update", description: "Top development in India today." }];
+    }
+
+    const prompt = `
+    You are an expert Instagram news editor for '${channelName}' creating a high-engagement "Daily News" carousel.
+    The series is titled: "WHAT HAPPENED IN INDIA - LAST 24 HOURS IN 60 SECONDS 🇮🇳 💭".
+
+    We need EXACTLY ${secondaryCount} distinct, high-impact secondary news slides (Slides 2 to ${totalSlides - 1}).
+    Each slide covers ONE significant Indian news event from the last 24 hours.
+
+    CRITICAL COPYWRITING RULES FOR SECONDARY NEWS SLIDES:
+    1. Each secondary slide text MUST be 18 to 28 words total (2 punchy, readable sentences max).
+    2. Bold, objective, high-stakes news voice.
+    3. In EVERY secondary slide, wrap 2 to 4 key words in <span class="daily-yellow">highlight words</span> (this renders in vivid yellow).
+    4. For EVERY secondary slide, provide:
+       - "imageEntity": A specific 1-2 word Wikipedia topic title for an Indian photo (e.g. 'IIT Bombay', 'Supreme Court of India', 'Eknath Shinde', 'Air India', 'Indian Railways', 'BCCI').
+       - "keywordSuggestions": 2 alternative search terms.
+       - "personName": Name of the main Indian leader/celebrity/official involved if any, else null.
+
+    Candidate Indian News Items:
+    ${candidateItems.map((c, i) => `${i + 1}. ${c.headline} - ${c.description || ""}`).join('\n')}
+
+    Output strictly valid JSON with this shape:
+    {
+        "secondarySlides": [
+            {
+                "text": "First part of event, <span class=\\"daily-yellow\\">key event words</span> followed by the consequence.",
+                "imageEntity": "Specific Indian Wikipedia Entity",
+                "keywordSuggestions": ["Alt 1", "Alt 2"],
+                "personName": "Full Person Name or null"
+            }
+        ]
+    }
+    `;
+
+    let parsed = null;
+
+    // 1. Claude API
+    if (process.env.ANTHROPIC_API_KEY) {
+        try {
+            console.log("Using Anthropic Claude for Daily News copy...");
+            const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+            const response = await anthropic.messages.create({
+                model: "claude-3-5-sonnet-20241022",
+                max_tokens: 1000,
+                temperature: 0.6,
+                system: "You output ONLY raw JSON without markdown or code blocks.",
+                messages: [{ role: "user", content: prompt }]
+            });
+            const content = response.content[0].text.trim();
+            const cleaned = content.replace(/^```json\s*/i, '').replace(/```$/g, '').trim();
+            parsed = JSON.parse(cleaned);
+        } catch (e) {
+            console.warn("Claude API failed for daily news, trying fallback:", e.message);
+        }
+    }
+
+    // 2. Pollinations Free Text AI
+    if (!parsed || !Array.isArray(parsed.secondarySlides)) {
+        try {
+            console.log("Querying Free AI for Daily News secondary slides...");
+            const res = await fetch('https://text.pollinations.ai/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: [
+                        { role: "system", content: "You output ONLY raw JSON without markdown or commentary." },
+                        { role: "user", content: prompt }
+                    ],
+                    jsonMode: true,
+                    model: "openai"
+                })
+            });
+            if (res.ok) {
+                const text = await res.text();
+                const cleaned = text.replace(/^```json\s*/i, '').replace(/```$/g, '').trim();
+                parsed = JSON.parse(cleaned);
+            }
+        } catch (err) {
+            console.warn("Pollinations failed for daily news:", err.message);
+        }
+    }
+
+    // 3. Fallback extraction if AI failed
+    let secSlides = (parsed && Array.isArray(parsed.secondarySlides)) ? parsed.secondarySlides : [];
+    if (secSlides.length < secondaryCount) {
+        console.log(`Using fallback generator for Daily News (${secSlides.length}/${secondaryCount} ready)...`);
+        for (let i = secSlides.length; i < secondaryCount; i++) {
+            const item = candidateItems[i] || candidateItems[0] || { headline: "National Development Across India" };
+            const clean = (item.headline || "Major National Update").replace(/\s*-\s*[^-]+$/, '').trim();
+            const words = clean.split(' ');
+            const mid = Math.max(1, Math.floor(words.length / 2));
+            const highlightLen = Math.min(3, Math.max(2, words.length - mid));
+            const highlightedText = words.slice(0, mid).join(' ') + 
+                ` <span class="daily-yellow">${words.slice(mid, mid + highlightLen).join(' ')}</span> ` + 
+                words.slice(mid + highlightLen).join(' ');
+
+            // Find capital entities
+            const capitalWords = clean.split(/[^a-zA-Z0-9]+/).filter(w => w.length > 3 && /^[A-Z]/.test(w));
+            const entity = capitalWords[0] || "India News";
+
+            secSlides.push({
+                text: highlightedText.trim(),
+                imageEntity: entity,
+                keywordSuggestions: [entity, "India"],
+                personName: capitalWords.length > 1 ? `${capitalWords[0]} ${capitalWords[1]}` : null
+            });
+        }
+    }
+
+    // Trim or pad to exact secondaryCount
+    secSlides = secSlides.slice(0, secondaryCount);
+
+    // Build the full carousel array: Slide 1 (Cover) + Slides 2..N-1 (Secondary) + Slide N (CTA)
+    const slides = [];
+
+    // Slide 1: Cover Slide
+    slides.push({
+        template: 'daily_news',
+        isCover: true,
+        coverStyle: coverStyle || 'styleA',
+        channelName: channelName,
+        headline: "WHAT HAPPENED IN INDIA - LAST 24 HOURS IN 60 SECONDS 🇮🇳 💭",
+        text: "WHAT HAPPENED IN INDIA - LAST 24 HOURS IN 60 SECONDS",
+        subtext: "< SWIPE | ( NEWS YOU CAN'T MISS 👉 )",
+        imageEntity: secSlides[0]?.imageEntity || "India Gate",
+        keywordSuggestions: ["India Gate", "Rashtrapati Bhavan", "Parliament of India"],
+        bgImagePath: "",
+        cutoutImagePath: "",
+        cutout2ImagePath: "",
+        badgeImages: [],
+        personName: secSlides[0]?.personName || null
+    });
+
+    // Slides 2 to N-1: Secondary News Slides
+    secSlides.forEach((s, idx) => {
+        slides.push({
+            template: 'daily_news',
+            isCover: false,
+            isCta: false,
+            channelName: channelName,
+            text: s.text,
+            subtext: "",
+            imageEntity: s.imageEntity || "India News",
+            keywordSuggestions: s.keywordSuggestions || [s.imageEntity || "India", "News"],
+            personName: s.personName || null,
+            bgImagePath: ""
+        });
+    });
+
+    // Slide N: CTA Slide
+    slides.push({
+        template: 'daily_news',
+        isCover: false,
+        isCta: true,
+        channelName: channelName,
+        text: "STAY AHEAD WITH 24-HOUR REAL-TIME UPDATES",
+        subtext: "What happened in India, delivered in 60 seconds every single day.",
+        ctaImagePath: "",
+        imageEntity: "News"
+    });
+
+    // Batch 2: Post Caption
+    const bulletsList = secSlides.map((s, idx) => `${idx + 1}. ${s.text.replace(/<[^>]+>/g, '').trim()}`).join('\n\n');
+    const caption = `🚨 WHAT HAPPENED IN INDIA - LAST 24 HOURS IN 60 SECONDS 🇮🇳\n\n${bulletsList}\n\nSwipe through the carousel to see the full breakdown! Which story surprised you the most? Drop your reaction below! 👇\n\n#India #DailyNews #CurrentAffairs #${channelName} #BreakingNews #IndiaNews #Headlines`;
+
+    return {
+        template: 'daily_news',
+        coverStyle: coverStyle || 'styleA',
+        personName: secSlides[0]?.personName || null,
+        circleImageKeyword: secSlides[1]?.imageEntity || "India",
+        imageEntity: secSlides[0]?.imageEntity || "India Gate",
+        slides: slides,
+        caption: caption
+    };
+}
+
+module.exports = {
+    generateCarouselCopy,
+    generateDailyNewsCopy,
+    generatePostCaption,
+    buildStoryFallback,
+    repairTruncatedJson
+};

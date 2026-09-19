@@ -1,8 +1,8 @@
 const path = require("path");
 const fs = require("fs");
-const { getTrendingStats } = require("./source");
+const { getTrendingStats, getIndiaDailyNewsBulletins } = require("./source");
 const { selectBestStory, markAsUsed } = require("./select");
-const { generateCarouselCopy } = require("./generateCopy");
+const { generateCarouselCopy, generateDailyNewsCopy } = require("./generateCopy");
 const { renderSlide, renderCarousel } = require("./render");
 const { fetchWikipediaImage, fetchTopicImage, removeBackground, resetUsedMedia } = require("./fetchMedia");
 
@@ -12,6 +12,8 @@ const { fetchWikipediaImage, fetchTopicImage, removeBackground, resetUsedMedia }
  */
 async function planCopy(options = {}) {
     const {
+        template = 'default',
+        coverStyle = 'styleA',
         topicMode = 'auto',
         customTopic = '',
         customContext = '',
@@ -20,6 +22,50 @@ async function planCopy(options = {}) {
         slideCount = 3,
         onProgress = console.log
     } = options;
+
+    if (template === 'daily_news') {
+        onProgress(`1. Initializing Daily News template (${slideCount} slides, cover: ${coverStyle})...`);
+        let bulletins = [];
+        let story = {};
+
+        if (topicMode === 'custom') {
+            onProgress("Using custom topic/context for Daily News...");
+            story = {
+                headline: customTopic || "What Happened in India - Last 24 Hours in 60 Seconds",
+                description: customContext || "Top Indian news stories from the last 24 hours.",
+                contextText: customContext || "",
+                url: "custom-url"
+            };
+        } else {
+            onProgress("Fetching latest 24h Indian national news bulletins from RSS...");
+            bulletins = await getIndiaDailyNewsBulletins();
+            onProgress(`Fetched ${bulletins.length} Indian news bulletins.`);
+            story = {
+                headline: "What Happened in India - Last 24 Hours in 60 Seconds",
+                description: "24-hour national round-up across India.",
+                url: "daily-news-india"
+            };
+        }
+
+        onProgress(`2. Drafting Daily News copy and segmentation for '${channelName}'...`);
+        try {
+            const copyData = await generateDailyNewsCopy({
+                story,
+                bulletins,
+                channelName,
+                slideCount,
+                coverStyle,
+                topicMode
+            });
+            copyData.template = 'daily_news';
+            copyData.coverStyle = coverStyle;
+            onProgress("Generated Daily News copy successfully.");
+            return { bestStory: story, copyData };
+        } catch (e) {
+            onProgress(`Error generating Daily News copy: ${e.message}`);
+            return { error: e.message };
+        }
+    }
 
     let bestStory;
 
@@ -52,6 +98,7 @@ async function planCopy(options = {}) {
 
     try {
         const copyData = await generateCarouselCopy(bestStory, channelName, slideCount);
+        copyData.template = 'default';
         onProgress("Generated copy successfully.");
         return { bestStory, copyData };
     } catch (e) {
@@ -84,6 +131,106 @@ async function renderFromCopyData(copyData, options = {}) {
         fs.writeFileSync(path.join(outputDir, "caption.txt"), copyData.caption);
     }
 
+    // ==========================================
+    // DAILY NEWS TEMPLATE PIPELINE
+    // ==========================================
+    if (copyData.template === 'daily_news') {
+        onProgress("Rendering Daily News carousel (Secondary-first workflow)...");
+        const totalSlides = copyData.slides.length;
+        const secondaryImgPaths = [];
+
+        // 1. Download images and prepare Secondary News Slides (Slides 2 to N-1)
+        for (let idx = 1; idx < totalSlides - 1; idx++) {
+            const slide = copyData.slides[idx];
+            slide.template = 'daily_news';
+            slide.channelName = channelName;
+            const targetImageOrKeyword = slide.imageUrl || slide.imageEntity || "India";
+            const slideImgPath = path.join(outputDir, `slide_bg_${idx + 1}.jpg`);
+
+            onProgress(`Fetching photo for Story Slide ${idx + 1}/${totalSlides} ('${targetImageOrKeyword}')...`);
+            const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, idx + 1);
+            slide.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slide.imageUrl || "");
+            secondaryImgPaths.push(slide.bgImagePath);
+        }
+
+        // 2. Prepare Slide N (CTA Slide)
+        const lastIdx = totalSlides - 1;
+        const ctaSlide = copyData.slides[lastIdx];
+        ctaSlide.template = 'daily_news';
+        ctaSlide.isCta = true;
+        ctaSlide.channelName = channelName;
+
+        // 3. Assemble Slide 1 (Cover Page with Collaged Elements)
+        const coverSlide = copyData.slides[0];
+        coverSlide.template = 'daily_news';
+        coverSlide.isCover = true;
+        coverSlide.coverStyle = coverSlide.coverStyle || copyData.coverStyle || 'styleA';
+        coverSlide.channelName = channelName;
+
+        // Cover Background
+        if (!coverSlide.bgImagePath) {
+            const coverBgPath = path.join(outputDir, "slide_bg_1.jpg");
+            onProgress("Fetching background scene for Cover ('India Gate')...");
+            const bgDownloaded = await fetchTopicImage(coverSlide.imageEntity || "India Gate", coverBgPath, 101);
+            coverSlide.bgImagePath = bgDownloaded ? `file:///${coverBgPath.replace(/\\/g, '/')}` : (secondaryImgPaths[0] || "");
+        }
+
+        // Cover Hero Cutout 1
+        let cutoutUrl = coverSlide.cutoutImagePath || "";
+        const personTarget = coverSlide.cutoutImageUrl || coverSlide.personName || copyData.personName;
+        if (!cutoutUrl && personTarget && personTarget.toLowerCase() !== "none" && personTarget.toLowerCase() !== "null") {
+            onProgress(`Fetching portrait cutout for Cover: ${personTarget}...`);
+            const rawPersonPath = path.join(outputDir, "person_raw.jpg");
+            const personDownloaded = await fetchWikipediaImage(personTarget, rawPersonPath);
+            if (personDownloaded) {
+                onProgress("Extracting portrait cutout using rembg...");
+                const cutoutPath = path.join(outputDir, "person_cutout.png");
+                const cutoutGenerated = removeBackground(personDownloaded, cutoutPath);
+                if (cutoutGenerated) {
+                    cutoutUrl = `file:///${cutoutPath.replace(/\\/g, '/')}`;
+                }
+            }
+        }
+        coverSlide.cutoutImagePath = cutoutUrl;
+
+        // Cover Hero Cutout 2 (if Style B)
+        let cutout2Url = coverSlide.cutout2ImagePath || "";
+        const person2Target = coverSlide.cutout2ImageUrl || coverSlide.person2Name;
+        if (coverSlide.coverStyle === 'styleB' && !cutout2Url && person2Target) {
+            const rawPerson2Path = path.join(outputDir, "person2_raw.jpg");
+            const person2Downloaded = await fetchWikipediaImage(person2Target, rawPerson2Path);
+            if (person2Downloaded) {
+                const cutout2Path = path.join(outputDir, "person2_cutout.png");
+                const cutout2Generated = removeBackground(person2Downloaded, cutout2Path);
+                if (cutout2Generated) {
+                    cutout2Url = `file:///${cutout2Path.replace(/\\/g, '/')}`;
+                }
+            }
+        }
+        coverSlide.cutout2ImagePath = cutout2Url;
+
+        // Cover 3 Badges: Assign from secondary story images if not explicitly specified
+        if (!Array.isArray(coverSlide.badgeImages) || coverSlide.badgeImages.length === 0) {
+            coverSlide.badgeImages = secondaryImgPaths.slice(0, 3);
+            while (coverSlide.badgeImages.length < 3) {
+                coverSlide.badgeImages.push(secondaryImgPaths[0] || coverSlide.bgImagePath);
+            }
+        }
+
+        onProgress("Rendering all Daily News slides with Puppeteer...");
+        const slidePaths = await renderCarousel(copyData.slides, outputDir);
+        onProgress(`Rendered ${slidePaths.length} Daily News slides.`);
+
+        return {
+            slides: slidePaths.map(p => path.basename(p)),
+            caption: copyData.caption,
+            copyData: copyData
+        };
+    }
+
+    // ==========================================
+    // DEFAULT TEMPLATE PIPELINE (100% PRESERVED)
+    // ==========================================
     // A. Fetch secondary circular badge image (for Slide 1)
     let circleUrl = "";
     if (!copyData.removeCircle) {
@@ -235,6 +382,40 @@ async function regenerateSingleSlide(slideIndex, slideData, options = {}) {
 }
 
 /**
+ * Re-assembles and re-renders the Slide 1 Cover page with swapped/updated components
+ * (badges 1-3, hero cutout 1, hero cutout 2, background)
+ */
+async function rebuildDailyNewsCover(coverData, options = {}) {
+    const { channelName = '1affairs', onProgress = console.log } = options;
+    const outputDir = path.join(__dirname, "output");
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    coverData.template = 'daily_news';
+    coverData.isCover = true;
+    coverData.channelName = channelName || coverData.channelName || '1affairs';
+
+    if (coverData.cutoutImageUrl && !coverData.cutoutImagePath) {
+        coverData.cutoutImagePath = coverData.cutoutImageUrl;
+    }
+    if (coverData.cutout2ImageUrl && !coverData.cutout2ImagePath) {
+        coverData.cutout2ImagePath = coverData.cutout2ImageUrl;
+    }
+
+    const outPath = path.join(outputDir, "slide-1.png");
+    onProgress("Re-assembling Daily News Cover with custom components...");
+    await renderSlide(coverData, outPath);
+    onProgress("Daily News Cover re-assembled successfully.");
+
+    return {
+        slideIndex: 0,
+        slideFile: "slide-1.png",
+        coverData
+    };
+}
+
+/**
  * Unified run function (retains 100% backward compatibility for automated/CLI runs).
  */
 async function run(options = {}) {
@@ -255,5 +436,6 @@ module.exports = {
     planCopy,
     renderFromCopyData,
     regenerateSingleSlide,
+    rebuildDailyNewsCover,
     run
 };

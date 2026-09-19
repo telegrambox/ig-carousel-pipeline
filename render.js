@@ -2,6 +2,7 @@ const puppeteer = require("puppeteer");
 const path = require("path");
 const fs = require("fs");
 const { buildSlideHTML } = require("./templates/slideTemplate");
+const { buildDailyNewsSlideHTML } = require("./templates/dailyNewsTemplate");
 
 function toDataUri(filePathOrUrl) {
   if (!filePathOrUrl) return "";
@@ -98,9 +99,12 @@ async function renderSlide(data, outputPath) {
     puppeteerOpts.executablePath = detectedExec;
   }
 
+  const templateName = data.template || "default";
+  const isDailyNews = templateName === "daily_news";
+
   const browser = await puppeteer.launch(puppeteerOpts);
   const page = await browser.newPage();
-  await page.setViewport({ width: 1080, height: 1440 });
+  await page.setViewport({ width: 1080, height: isDailyNews ? 1350 : 1440 });
 
   // Convert any local file paths to base64 data URIs
   const preparedData = {
@@ -108,10 +112,16 @@ async function renderSlide(data, outputPath) {
     channelName: data.channelName || '1affairs',
     bgImagePath: toDataUri(data.bgImagePath),
     cutoutImagePath: toDataUri(data.cutoutImagePath),
+    cutout2ImagePath: toDataUri(data.cutout2ImagePath),
     circleImagePath: toDataUri(data.circleImagePath),
+    ctaImagePath: toDataUri(data.ctaImagePath),
+    badgeImages: Array.isArray(data.badgeImages) ? data.badgeImages.map(toDataUri) : [],
   };
 
-  const html = buildSlideHTML(preparedData);
+  const html = isDailyNews
+    ? buildDailyNewsSlideHTML(preparedData)
+    : buildSlideHTML(preparedData);
+
   await page.setContent(html, { waitUntil: "networkidle0" });
   await page.screenshot({ path: outputPath });
   await browser.close();
