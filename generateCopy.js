@@ -188,37 +188,26 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
     You are an expert Instagram copywriter for the media brand '${channelName}'.
     Analyze the following news story and turn it into high-converting, viral carousel copy matching our brand style across EXACTLY ${count} slides.
 
-    CRITICAL PACING & INFORMATION DISTRIBUTION RULES:
-    1. SLIDE 1 MUST BE DEFINITELY JUST A HOOK (NO STORY DUMPING):
-       - Slide 1 text MUST be strictly 14 to 22 words total (1 or 2 punchy sentences maximum).
-       - It must serve SOLELY as an irresistible, curiosity-inducing hook or shocking headline.
-       - NEVER put background story, history, or detailed explanations on Slide 1. Keep it clean, dramatic, and focused only on the core event.
-       - Wrap the single most striking claim or number in <span class='highlight'>bold hook</span>.
+    CRITICAL RULE FOR COMPREHENSIVE STORY COVERAGE (NO REPETITIVE TEXT!):
+    ${fullStoryContext ? "You have been provided with detailed news context/article. Read it deeply and divide the entire narrative chronologically across all slides. Ensure full story coverage with zero missing facts and zero repeated sentences." : "Read the story deeply. Break the story down into a progressive narrative across all slides. Do NOT follow a generic loop. Every slide must convey distinct, meaningful information."}
+    - Slide 1: Breaking high-stakes hook with the primary news event.
+    - Slides 2 to ${count - 1}: Crucial context, what sparked the event, specific numbers, turning points, on-ground reactions.
+    - Slide ${count}: Definitive conclusion completing the story (takeaway, resolution, or ongoing status).
+    In each slide's "text", wrap 2-4 impactful words in <span class='highlight'>bold words</span>.
 
-    2. SLIDES 2 TO ${count} MUST HAVE EQUAL LENGTH & EQUAL INFORMATION WEIGHT:
-       - Divide the remaining story context, backstory, specific numbers, and key developments into ${count - 1} EQUAL, BALANCED pieces.
-       - Each slide from 2 to ${count} MUST have roughly the SAME word count (25 to 35 words, exactly 2 clean sentences each).
-       - STRICTLY FORBIDDEN: Do NOT dump all facts or numbers into Slide 2 or 3! Distribute the narrative evenly across all slides so no page feels overcrowded and no page feels empty.
-       - Slide 2: Catalyst / what triggered the event (balanced weight).
-       ${count > 3 ? `- Slides 3 to ${count - 1}: The hard numbers, official responses, and direct impact (balanced weight).\n` : ''}- Slide ${count}: The final outcome, ongoing status, or takeaway completing the entire story.
-       - In EVERY slide, wrap 2-4 impactful words in <span class='highlight'>highlight words</span>.
-
-    3. NICHE-AWARE IMAGES & ENTITIES:
-       - For EVERY slide, choose a UNIQUE 1-2 word Wikipedia topic title for "imageEntity" representing what that specific slide discusses.
-       - Anchor strictly to the niche and cultural/geographic setting (e.g. 'Delhi University', 'Police van', 'Supreme Court', NOT generic stock terms).
-       - Provide 2 alternative keyword suggestions in "keywordSuggestions" for each slide.
-       - If the story features 1 or 2 key figures (e.g. Modi, Trump, Ravi Kishan, Nithin Kamath), list them in "people".
+    CRITICAL RULE FOR NICHE-AWARE IMAGES:
+    For EVERY slide, choose a UNIQUE 1-2 word Wikipedia topic title for "imageEntity" representing what that specific slide discusses.
+    CRITICAL: It MUST remain strictly anchored to the core niche and cultural/geographic setting of the story (e.g. if the story is about an Indian student election clash, use entities like 'Delhi University', 'Student protest', 'Police van', 'Supreme Court of India', NOT generic global photos).
+    Also provide 2 alternative keyword suggestions in "keywordSuggestions" for each slide.
 
     The output MUST be valid JSON matching exactly this shape:
     {
-        "personName": "Full name of primary person/leader if applicable, else null",
-        "people": ["Name of Person 1", "Name of Person 2 if comparison/relevant"],
+        "personName": "Full name of main person/leader if applicable, else null",
         "circleImageKeyword": "1-2 word keyword for circular badge visual",
-        "badgeKeywords": ["Keyword 1", "Keyword 2 if relevant"],
-        "imageEntity": "1-2 word Wikipedia entity for slide 1 background",
+        "imageEntity": "1-2 word Wikipedia entity for slide 1",
         "slides": [
             {
-                "text": "Hook or detail. Wrap 2-4 words in <span class='highlight'>highlight</span>.",
+                "text": "The main hook or story detail here. Wrap the most striking stat/claim in <span class='highlight'>bold claim here</span>.",
                 "subtext": "A brief supporting thought. | SWIPE",
                 "imageEntity": "Specific 1-2 word Wikipedia entity for THIS slide",
                 "keywordSuggestions": ["Alternative 1", "Alternative 2"]

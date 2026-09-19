@@ -140,12 +140,11 @@ app.post('/api/upload-image', (req, res) => {
         }
 
         const idx = parseInt(slideIndex) || 0;
-        const aIdx = parseInt(req.body.addonIndex) || 0;
         let filename;
         if (target === 'circle') {
-            filename = `circle_${idx + 1}_${aIdx + 1}.jpg`;
+            filename = 'circle.jpg';
         } else if (target === 'cutout') {
-            filename = `person_raw_${idx + 1}_${aIdx + 1}.jpg`;
+            filename = 'person_raw.jpg';
         } else {
             filename = `custom_slide_${idx + 1}.jpg`;
         }
@@ -154,25 +153,17 @@ app.post('/api/upload-image', (req, res) => {
         const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
         fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
 
-        let finalPath = filePath;
-        let finalOutputName = filename;
-
-        // If target is cutout, attempt background removal with graceful fallback
+        // If target is cutout, generate transparent PNG using rembg
         if (target === 'cutout') {
             const { removeBackground } = require('./fetchMedia');
-            const cutoutFilename = `person_cutout_${idx + 1}_${aIdx + 1}.png`;
-            const cutoutPath = path.join(outputDir, cutoutFilename);
-            const cutoutGen = removeBackground(filePath, cutoutPath);
-            if (cutoutGen && fs.existsSync(cutoutPath)) {
-                finalPath = cutoutPath;
-                finalOutputName = cutoutFilename;
-            }
+            const cutoutPath = path.join(outputDir, 'person_cutout.png');
+            removeBackground(filePath, cutoutPath);
         }
 
         res.json({
             success: true,
-            imageUrl: `/output/${finalOutputName}?t=${Date.now()}`,
-            localPath: finalPath
+            imageUrl: `/output/${(target === 'cutout') ? 'person_cutout.png' : filename}?t=${Date.now()}`,
+            localPath: (target === 'cutout') ? path.join(outputDir, 'person_cutout.png') : filePath
         });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
