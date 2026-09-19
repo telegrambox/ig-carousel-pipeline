@@ -124,6 +124,7 @@ async function renderFromCopyData(copyData, options = {}) {
         const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, idx + 1);
         slide.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slide.imageUrl || "");
 
+        slide.channelName = channelName;
         // Slide 1 has the hero person cutout & circular badge
         slide.cutoutImagePath = (idx === 0 && !copyData.removeCutout) ? cutoutUrl : "";
         slide.circleImagePath = (idx === 0 && !copyData.removeCircle) ? circleUrl : "";
@@ -151,11 +152,13 @@ async function renderFromCopyData(copyData, options = {}) {
  * Step 3: Re-render only ONE specific slide on demand (e.g. retry image or tweak text).
  */
 async function regenerateSingleSlide(slideIndex, slideData, options = {}) {
-    const { onProgress = console.log } = options;
+    const { channelName = '1affairs', onProgress = console.log } = options;
     const outputDir = path.join(__dirname, "output");
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
     }
+
+    slideData.channelName = channelName || slideData.channelName || '1affairs';
 
     const idx = parseInt(slideIndex) || 0;
     const slideImgPath = path.join(outputDir, `slide_bg_${idx + 1}.jpg`);

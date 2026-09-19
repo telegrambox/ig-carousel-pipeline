@@ -188,12 +188,20 @@ async function generateCarouselCopy(story, channelName = '1affairs', slideCount 
     You are an expert Instagram copywriter for the media brand '${channelName}'.
     Analyze the following news story and turn it into high-converting, viral carousel copy matching our brand style across EXACTLY ${count} slides.
 
-    CRITICAL RULE FOR COMPREHENSIVE STORY COVERAGE (NO REPETITIVE TEXT!):
-    ${fullStoryContext ? "You have been provided with detailed news context/article. Read it deeply and divide the entire narrative chronologically across all slides. Ensure full story coverage with zero missing facts and zero repeated sentences." : "Read the story deeply. Break the story down into a progressive narrative across all slides. Do NOT follow a generic loop. Every slide must convey distinct, meaningful information."}
-    - Slide 1: Breaking high-stakes hook with the primary news event.
-    - Slides 2 to ${count - 1}: Crucial context, what sparked the event, specific numbers, turning points, on-ground reactions.
-    - Slide ${count}: Definitive conclusion completing the story (takeaway, resolution, or ongoing status).
-    In each slide's "text", wrap 2-4 impactful words in <span class='highlight'>bold words</span>.
+    CRITICAL PACING & EQUAL INFORMATION DISTRIBUTION RULES:
+    1. SLIDE 1 MUST BE DEFINITELY JUST A HOOK (NO STORY DUMPING):
+       - Slide 1 text MUST be strictly 14 to 22 words total (1 or 2 punchy, curiosity-inducing sentences maximum).
+       - It must serve SOLELY as an irresistible, shocking hook or breaking headline.
+       - NEVER dump facts, explanations, or background context on Slide 1. Keep it clean, dramatic, and focused only on the core event.
+       - Wrap the single most striking hook/claim in <span class='highlight'>bold hook</span>.
+
+    2. SLIDES 2 TO ${count} MUST HAVE EQUAL LENGTH & EQUAL INFORMATION WEIGHT:
+       - ${fullStoryContext ? `Divide the full story context into EXACTLY ${count - 1} equal, chronological narrative pieces across Slides 2 to ${count}. Ensure all information is distributed evenly across each slide with zero repetition and zero missing facts.` : `Divide the narrative context, key facts, numbers, and developments into ${count - 1} equal, balanced pieces across Slides 2 to ${count}.`}
+       - STRICT REQUIREMENT: Each slide from Slide 2 to Slide ${count} MUST have roughly the SAME word count (~25 to 35 words, exactly 2 well-formed sentences per slide).
+       - STRICTLY FORBIDDEN: Do NOT cram or dump all facts into Slide 2 or 3! Distribute the narrative evenly across all slides so no slide feels overloaded and no slide feels empty.
+       - Slide 2: The catalyst / what sparked the event and immediate background.
+       ${count > 3 ? `- Slides 3 to ${count - 1}: The core numbers, turning points, official responses, and direct consequences distributed evenly across these slides.\n` : ''}- Slide ${count}: The final outcome, ongoing status, or concluding takeaway completing the entire story (treat it as completing all story information, not a generic goodbye or CTA).
+       - In EVERY slide, wrap 2-4 impactful words in <span class='highlight'>highlight words</span>.
 
     CRITICAL RULE FOR NICHE-AWARE IMAGES:
     For EVERY slide, choose a UNIQUE 1-2 word Wikipedia topic title for "imageEntity" representing what that specific slide discusses.

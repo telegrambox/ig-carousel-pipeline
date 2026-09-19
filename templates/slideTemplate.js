@@ -10,6 +10,38 @@
 *   fullBleed: false
 * }
 */
+function formatBrandLogo(channelName = "1affairs") {
+  const clean = String(channelName || "1affairs").trim();
+  if (clean.toLowerCase() === "1affairs") {
+    return `<span class="one">1</span><span class="affairs">affairs</span>`;
+  }
+  
+  // If starts with number (e.g. 24news, 1india)
+  const numMatch = clean.match(/^(\d+)(.*)$/);
+  if (numMatch) {
+    return `<span class="one">${numMatch[1]}</span><span class="affairs">${numMatch[2]}</span>`;
+  }
+
+  // If two words (e.g. Tech Pulse, Daily News)
+  if (clean.includes(' ')) {
+    const parts = clean.split(/\s+/);
+    return `<span class="one">${parts[0]}</span><span class="affairs">${parts.slice(1).join(' ')}</span>`;
+  }
+
+  // If camelCase or PascalCase (e.g. FinNews, NewsHub)
+  const camelMatch = clean.match(/^([A-Z][a-z0-9]+)([A-Z].*)$/);
+  if (camelMatch) {
+    return `<span class="one">${camelMatch[1]}</span><span class="affairs">${camelMatch[2]}</span>`;
+  }
+
+  // Single word: highlight first 2-3 letters
+  if (clean.length > 4) {
+    return `<span class="one">${clean.slice(0, 3)}</span><span class="affairs">${clean.slice(3)}</span>`;
+  }
+
+  return `<span class="one">${clean[0]}</span><span class="affairs">${clean.slice(1)}</span>`;
+}
+
 function buildSlideHTML(data) {
   const {
     text = "",
@@ -20,6 +52,7 @@ function buildSlideHTML(data) {
     circleImagePath = "",
     fullBleed = false,
     bgGradient = "linear-gradient(135deg, #0a1128 0%, #1c2541 50%, #3a506b 100%)",
+    channelName = "1affairs",
   } = data;
 
   const isFullBleed = fullBleed || (!cutoutImagePath && !circleImagePath);
@@ -295,9 +328,9 @@ function buildSlideHTML(data) {
       <div class="dark-dotted-texture"></div>
     ` : ''}
 
-    <!-- Top 1affairs Logo -->
+    <!-- Top Brand Logo -->
     <div class="logo-container">
-      <div class="logo-brand"><span class="one">1</span><span class="affairs">affairs</span></div>
+      <div class="logo-brand">${formatBrandLogo(channelName)}</div>
       <div class="logo-arrow">
         <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" stroke="${isFullBleed ? '#ffffff' : '#0d0d0d'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
       </div>

@@ -105,6 +105,7 @@ async function renderSlide(data, outputPath) {
   // Convert any local file paths to base64 data URIs
   const preparedData = {
     ...data,
+    channelName: data.channelName || '1affairs',
     bgImagePath: toDataUri(data.bgImagePath),
     cutoutImagePath: toDataUri(data.cutoutImagePath),
     circleImagePath: toDataUri(data.circleImagePath),

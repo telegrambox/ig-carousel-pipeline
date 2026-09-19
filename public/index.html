@@ -386,7 +386,7 @@
                 customTopic: document.getElementById('customTopic').value,
                 customContext: document.getElementById('customContext').value,
                 category: document.getElementById('category').value,
-                channelName: document.getElementById('channelName').value,
+                channelName: document.getElementById('channelName').value.trim() || '1affairs',
                 slideCount: parseInt(document.getElementById('slideCount').value) || 5
             };
 
@@ -406,6 +406,7 @@
                 }
 
                 currentCopyData = data.copyData;
+                currentCopyData.channelName = payload.channelName;
                 currentBestStory = data.bestStory;
                 log(`Successfully drafted ${currentCopyData.slides.length} slides!`, 'text-green-400');
                 document.getElementById('logStatus').textContent = 'Ready';
@@ -640,7 +641,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         copyData: currentCopyData,
-                        channelName: document.getElementById('channelName').value,
+                        channelName: document.getElementById('channelName').value.trim() || currentCopyData.channelName || '1affairs',
                         bestStory: currentBestStory || {},
                         topicMode: currentMode
                     })
@@ -739,7 +740,7 @@
                     body: JSON.stringify({
                         slideIndex: idx,
                         slideData: slideData,
-                        channelName: document.getElementById('channelName').value
+                        channelName: document.getElementById('channelName').value.trim() || currentCopyData?.channelName || '1affairs'
                     })
                 });
                 const data = await res.json();
@@ -914,7 +915,7 @@
                     body: JSON.stringify({
                         slideIndex: idx,
                         slideData: slide,
-                        channelName: document.getElementById('channelName').value
+                        channelName: document.getElementById('channelName').value.trim() || currentCopyData?.channelName || '1affairs'
                     })
                 });
                 const data = await res.json();
