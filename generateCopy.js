@@ -114,13 +114,26 @@ function buildContextualFallback(story, count, channelName) {
     
     // Extract distinct perspectives from the RSS description
     const rawSnippet = (story.description || "").replace(/<[^>]+>/g, ' ');
-    const snippets = rawSnippet
+    const allSnippets = rawSnippet
         .split(/[\n\r]+|\s{2,}|\.\s+/)
         .map(s => s.replace(/\s*-\s*[^-]+$/, '').trim())
         .filter(s => s.length > 15 && !s.includes("Top news of the day"));
 
+    // Strictly filter out snippets that duplicate the headline!
+    const headlineWordsSet = new Set(cleanHeadline.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3));
+    const snippets = allSnippets.filter(s => {
+        const words = s.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3);
+        if (words.length === 0) return false;
+        const overlap = words.filter(w => headlineWordsSet.has(w)).length;
+        // Exclude if more than 40% of words overlap with the headline
+        return (overlap / words.length) < 0.4;
+    });
+
+    // If headline has multiple clauses (e.g. separated by ':', '|', or '-'), extract them for variety
+    const headlineClauses = cleanHeadline.split(/[:|]|\s+-\s+/).map(c => c.trim()).filter(c => c.length > 10);
+
     // Extract named entities / capitalized keywords from headline and snippets
-    const allText = `${cleanHeadline} ${snippets.join(' ')}`;
+    const allText = `${cleanHeadline} ${allSnippets.join(' ')}`;
     const entityMatches = allText.match(/\b[A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+)?\b/g) || [];
     
     // Also extract all meaningful content words from the headline (e.g. UPI, MDR, tax, budget)
@@ -130,33 +143,46 @@ function buildContextualFallback(story, count, channelName) {
         .map(w => w.charAt(0).toUpperCase() + w.slice(1));
 
     // Category-specific relevant topic anchors
-    const isFinance = /finance|upi|mdr|tax|gdp|bank|stock|rbi|market|fund|money|rupee|invest/i.test(allText);
-    const isTech = /tech|ai|chip|software|cyber|digital|phone|app|robot/i.test(allText);
+    const isFinance = /finance|upi|mdr|tax|gdp|bank|stock|rbi|market|fund|money|rupee|invest|sensex|nifty/i.test(allText);
+    const isTech = /tech|ai|chip|software|cyber|digital|phone|app|robot|iphone|apple/i.test(allText);
 
     const categoryPool = isFinance
-        ? ["Unified Payments Interface", "Reserve Bank of India", "Digital payment", "Stock market", "Banking", "Economy", "Finance"]
+        ? ["Stock market", "Sensex", "Reserve Bank of India", "Digital payment", "Banking", "Economy", "Finance"]
         : isTech
-        ? ["Artificial intelligence", "Technology", "Smartphone", "Computer security", "Innovation", "Data", "Semiconductor"]
+        ? ["Smartphone", "Technology", "Artificial intelligence", "Innovation", "Apple Inc.", "Computer security", "Semiconductor"]
         : ["Government of India", "Parliament of India", "Supreme Court of India", "Public policy", "City", "Journalism"];
 
-    // Deduplicate entities and filter common filler words
-    const banned = new Set(["The", "This", "That", "When", "What", "Where", "How", "Why", "According", "Breaking", "After", "Before", "During", "New", "Top", "India", "News", "Media", "Day", "Story", "User", "About"]);
-    const combinedEntities = [...new Set([...headlineWords, ...entityMatches, ...categoryPool])].filter(e => !banned.has(e) && e.length >= 3);
+    // Comprehensive stop-words list to prevent auxiliary verbs and common terms from becoming search entities
+    const banned = new Set([
+        "The", "This", "That", "When", "What", "Where", "How", "Why", "According", "Breaking", 
+        "After", "Before", "During", "New", "Top", "India", "News", "Media", "Day", "Story", 
+        "User", "About", "Can", "Than", "Will", "Are", "Have", "Has", "Had", "Was", "Were", 
+        "Been", "Into", "Onto", "Your", "Their", "They", "There", "Which", "Whose", "Whom", 
+        "Also", "More", "Most", "Just", "Over", "Under", "With", "From", "Here", "Some", 
+        "Such", "Like", "Arrive", "Faster", "Leaves", "Clash", "Today", "Guide", "Eight", 
+        "Stocks", "Ends", "Below", "Settles", "Could", "Should", "Would", "Does", "Done",
+        "Many", "Much", "Make", "Take", "Come", "Goes", "Going", "Seen", "Says", "Told"
+    ]);
 
-    // Detect potential person
+    // Prioritize high-quality named entities and category pool before generic words
+    const filteredHeadlineWords = headlineWords.filter(w => !banned.has(w) && w.length > 3);
+    const combinedEntities = [...new Set([...entityMatches.filter(e => !banned.has(e)), ...categoryPool, ...filteredHeadlineWords])];
+
+    // Detect potential person (must be 2 capitalized words where first isn't banned)
     const personCandidates = entityMatches.filter(e => e.split(' ').length === 2 && !banned.has(e.split(' ')[0]));
     const personName = personCandidates.length > 0 ? personCandidates[0] : null;
 
     // Create unique entities per slide (guaranteed distinct)
     const slideEntities = [];
     for (let i = 0; i < count; i++) {
-        slideEntities.push(combinedEntities[i % combinedEntities.length] || (isFinance ? "Finance" : "News"));
+        slideEntities.push(combinedEntities[i % combinedEntities.length] || (isFinance ? "Finance" : "Technology"));
     }
 
     const slides = [];
 
-    // Slide 1: The Core Hook
-    const hookWords = cleanHeadline.split(' ');
+    // Slide 1: The Core Breaking Hook
+    const leadText = headlineClauses[0] || cleanHeadline;
+    const hookWords = leadText.split(' ');
     const midIdx = Math.max(1, Math.floor(hookWords.length / 2));
     const highlightedHook = hookWords.slice(0, midIdx).join(' ') + 
         ` <span class='highlight'>${hookWords.slice(midIdx, midIdx + 4).join(' ')}</span> ` + 
@@ -164,24 +190,59 @@ function buildContextualFallback(story, count, channelName) {
 
     slides.push({
         text: highlightedHook.trim(),
-        subtext: "Swipe to see the full breakdown | SWIPE",
+        subtext: "Full breakdown | SWIPE",
         imageEntity: slideEntities[0]
     });
 
-    // Slides 2 to count - 1: Narrative Progression using coverage details
+    // Slides 2 to count - 1: Narrative Progression using coverage details (NEVER repeating Slide 1)
     for (let i = 1; i < count - 1; i++) {
-        const snippet = snippets[i - 1] || snippets[0] || "Critical developments unfold as authorities respond.";
-        const snipWords = snippet.split(' ');
-        const highlightLen = Math.min(3, snipWords.length);
+        let snippetText = "";
+        
+        // Priority 1: Use non-duplicate secondary coverage from RSS
+        if (snippets[i - 1]) {
+            snippetText = snippets[i - 1];
+        } 
+        // Priority 2: Use secondary clauses of the headline
+        else if (headlineClauses[i]) {
+            snippetText = headlineClauses[i];
+        } 
+        // Priority 3: Informative category-specific developments (distinct for each slide)
+        else {
+            if (isFinance) {
+                const financeContexts = [
+                    "Institutional trading patterns showed distinct sector divergence during the session.",
+                    "Key resistance levels and global cues influenced broader domestic market momentum.",
+                    "Analysts noted elevated volume shifts across benchmark index constituents."
+                ];
+                snippetText = financeContexts[(i - 1) % financeContexts.length];
+            } else if (isTech) {
+                const techContexts = [
+                    "Rapid delivery pipelines and local supply logistics drove early adoption trends.",
+                    "Industry tracking highlighted significant consumer engagement across primary hubs.",
+                    "Component distribution and operational readiness shaped the unfolding launch."
+                ];
+                snippetText = techContexts[(i - 1) % techContexts.length];
+            } else {
+                const generalContexts = [
+                    "Field reports confirmed key details as administrative protocols were initiated.",
+                    "Official statements outlined the preliminary sequence of events on the ground.",
+                    "Regional observers noted widespread reaction as the situation developed."
+                ];
+                snippetText = generalContexts[(i - 1) % generalContexts.length];
+            }
+        }
+
+        const snipWords = snippetText.split(' ');
+        const highlightLen = Math.min(3, Math.max(2, Math.floor(snipWords.length / 3)));
         const highlighted = `<span class='highlight'>${snipWords.slice(0, highlightLen).join(' ')}</span> ` + 
             snipWords.slice(highlightLen).join(' ');
 
         const transitions = [
-            "The background behind this controversy | SWIPE",
-            "Key facts driving the latest uproar | SWIPE",
-            "Inside details that changed everything | SWIPE",
-            "What this means for the broader sector | SWIPE",
-            "The unfolding consequences you need to know | SWIPE"
+            "Context & Background | SWIPE",
+            "Key Developments | SWIPE",
+            "Inside Details | SWIPE",
+            "Wider Implications | SWIPE",
+            "Sector Overview | SWIPE"
         ];
 
         slides.push({
@@ -191,15 +252,24 @@ function buildContextualFallback(story, count, channelName) {
         });
     }
 
-    // Final Slide: The Impact & Discussion
+    // Final Slide: The Conclusion (Completing all information, NOT a CTA!)
+    let concludingText = "";
+    if (isFinance) {
+        concludingText = `The session concluded with <span class='highlight'>market participants assessing key valuation levels</span> and upcoming macroeconomic cues.`;
+    } else if (isTech) {
+        concludingText = `The rollout establishes a new benchmark as <span class='highlight'>retail supply and operational networks stabilize</span> to meet ongoing demand.`;
+    } else {
+        concludingText = `The initial phase concludes as <span class='highlight'>authorities formalize documentation and complete on-ground reviews.</span>`;
+    }
+
     slides.push({
-        text: `As scrutiny intensifies, <span class='highlight'>all eyes remain on the next move.</span>`,
-        subtext: "Share your thoughts in the comments | READ CAPTION",
+        text: concludingText,
+        subtext: "The bottom line | READ CAPTION",
         imageEntity: slideEntities[count - 1]
     });
 
     return {
-        caption: `🚨 ${cleanHeadline}\n\nFull breakdown of this developing story. Where do you stand on this? Let us know in the comments below! 👇\n\n#${channelName} #trending #currentaffairs #news`,
+        caption: `🚨 ${cleanHeadline}\n\nFull breakdown of this developing story. Read above for the complete report.\n\n#${channelName} #trending #currentaffairs #news`,
         personName: personName,
         circleImageKeyword: slideEntities[1] || slideEntities[0] || "News",
         imageEntity: slideEntities[0],
@@ -225,7 +295,7 @@ async function generatePostCaption(headline, channelName) {
     } catch (e) {}
     // Fallback caption
     const cleanHeadline = (headline || "Breaking News").replace(/\s*-\s*[^-]+$/, '').trim();
-    return `🚨 ${cleanHeadline}\n\nSwipe through the full breakdown above. Where do you stand on this development? Share your perspective in the comments below! 👇\n\n#${channelName} #breakingnews #trending #india #updates`;
+    return `🚨 ${cleanHeadline}\n\nComplete report summarized above.\n\n#${channelName} #breakingnews #trending #india #updates`;
 }
 
 async function generateCarouselCopy(story, channelName = '1affairs', slideCount = 3) {
@@ -242,14 +312,14 @@ ${story.description || ""}
 
 Instructions:
 1. Build a chronological narrative across EXACTLY ${count} slides:
-   - Slide 1: High-stakes breaking hook.
-   - Slide 2: Crucial context and what sparked the situation.
-   - Slide 3: The shocking revelation, turning point, or key evidence.
+   - Slide 1: High-stakes breaking hook with key fact.
+   - Slide 2: Crucial context and what sparked the situation (MUST be distinct from Slide 1).
+   - Slide 3: The key revelation, specific evidence, or turning point.
    - Slide 4 (if count >= 4): Wider impact, public reaction, or financial/legal fallout.
    - Slide 5+ (if count >= 5): Strategic implications.
-   - Final Slide: Forward outlook and question for the audience.
+   - Final Slide: The definitive conclusion that COMPLETES the story's information (final outcome, resolution, or concrete takeaway). Do NOT make it a question or a call-to-action (CTA)! Treat it as delivering the final piece of the report.
 2. In each slide's "text", wrap 2-4 impactful words in <span class='highlight'>...</span>. Keep each sentence punchy (under 25 words).
-3. Every slide MUST have completely distinct text. NEVER repeat templates or filler phrases!
+3. Every slide MUST have completely distinct text. NEVER repeat the headline or filler phrases!
 4. For EVERY slide, choose a UNIQUE 1-2 word Wikipedia topic title (a real person, city, institution, company, or physical object) for "imageEntity".
    Do NOT repeat imageEntity across slides!
 
@@ -260,7 +330,7 @@ Return ONLY valid JSON:
     "slides": [
         {
             "text": "Sentence with <span class='highlight'>key words</span>.",
-            "subtext": "Brief intriguing note | SWIPE",
+            "subtext": "Brief informative note | SWIPE (Final slide must be: The bottom line | READ CAPTION)",
             "imageEntity": "Unique Wikipedia entity"
         }
     ]
