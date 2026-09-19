@@ -160,10 +160,21 @@ async function renderFromCopyData(copyData, options = {}) {
             const targetImageOrKeyword = slide.imageUrl || slide.imageEntity || "India";
             const slideImgPath = path.join(outputDir, `slide_bg_${idx + 1}.jpg`);
 
-            onProgress(`Fetching photo for Story Slide ${idx + 1}/${totalSlides} ('${targetImageOrKeyword}')...`);
-            const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, idx + 1);
+            let fallbackKeyword = slide.imageEntity;
+            if (!fallbackKeyword || fallbackKeyword.startsWith('http')) {
+                const cleanText = (slide.text || "").replace(/<[^>]+>/g, '').replace(/[:\-–|]/g, ' ').trim();
+                const words = cleanText.split(/\s+/).filter(w => w.length > 3 && !/^(about|after|before|several|nearly|amid|across|official|underway|their|there)$/i.test(w));
+                fallbackKeyword = words.slice(0, 3).join(' ') || "India";
+            }
+
+            const isDirectUrl = targetImageOrKeyword.startsWith('http://') || targetImageOrKeyword.startsWith('https://');
+            const displayLabel = isDirectUrl ? `direct URL (${targetImageOrKeyword.substring(0, 40)}...)` : `'${targetImageOrKeyword}'`;
+
+            onProgress(`[Story Slide ${idx + 1}/${totalSlides}] Fetching visual via ${displayLabel}...`);
+            const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, idx + 1, fallbackKeyword);
             slide.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slide.imageUrl || "");
             secondaryImgPaths.push(slide.bgImagePath);
+            onProgress(`[Story Slide ${idx + 1}/${totalSlides}] Visual ready.`);
         }
 
         // 2. Prepare Slide N (CTA Slide) ONLY if isLastCta is true
@@ -234,7 +245,7 @@ async function renderFromCopyData(copyData, options = {}) {
         }
 
         onProgress("Rendering all Daily News slides with Puppeteer...");
-        const slidePaths = await renderCarousel(copyData.slides, outputDir);
+        const slidePaths = await renderCarousel(copyData.slides, outputDir, onProgress);
         onProgress(`Rendered ${slidePaths.length} Daily News slides.`);
 
         return {
@@ -284,8 +295,18 @@ async function renderFromCopyData(copyData, options = {}) {
         const targetImageOrKeyword = slide.imageUrl || slide.imageEntity || copyData.imageEntity || bestStory.headline || "News";
         const slideImgPath = path.join(outputDir, `slide_bg_${idx + 1}.jpg`);
 
-        onProgress(`Fetching photo for Slide ${idx + 1}/${totalSlides} ('${targetImageOrKeyword}')...`);
-        const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, idx + 1);
+        let fallbackKeyword = slide.imageEntity;
+        if (!fallbackKeyword || fallbackKeyword.startsWith('http')) {
+            const cleanText = (slide.text || "").replace(/<[^>]+>/g, '').replace(/[:\-–|]/g, ' ').trim();
+            const words = cleanText.split(/\s+/).filter(w => w.length > 3 && !/^(about|after|before|several|nearly|amid|across|official|underway|their|there)$/i.test(w));
+            fallbackKeyword = words.slice(0, 3).join(' ') || "News";
+        }
+
+        const isDirectUrl = targetImageOrKeyword.startsWith('http://') || targetImageOrKeyword.startsWith('https://');
+        const displayLabel = isDirectUrl ? `direct URL (${targetImageOrKeyword.substring(0, 40)}...)` : `'${targetImageOrKeyword}'`;
+
+        onProgress(`[Slide ${idx + 1}/${totalSlides}] Fetching visual via ${displayLabel}...`);
+        const downloaded = await fetchTopicImage(targetImageOrKeyword, slideImgPath, idx + 1, fallbackKeyword);
         slide.bgImagePath = downloaded ? `file:///${slideImgPath.replace(/\\/g, '/')}` : (slide.imageUrl || "");
 
         slide.channelName = activeChannel;
@@ -295,7 +316,7 @@ async function renderFromCopyData(copyData, options = {}) {
     }
 
     onProgress("Rendering slides with Puppeteer...");
-    const slidePaths = await renderCarousel(copyData.slides, outputDir);
+    const slidePaths = await renderCarousel(copyData.slides, outputDir, onProgress);
     onProgress(`Rendered ${slidePaths.length} slides.`);
 
     if (topicMode === 'auto' && bestStory && bestStory.url && bestStory.url !== 'custom-url') {

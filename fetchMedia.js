@@ -26,9 +26,10 @@ async function fetchWikipediaImage(personName, savePath) {
             console.log(`Downloading direct person portrait URL: ${fetchUrl}`);
             const res = await fetch(fetchUrl, {
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
                     'Accept': 'image/*,*/*'
-                }
+                },
+                timeout: 6000
             });
             if (res.ok) {
                 const buffer = await res.buffer();
@@ -229,9 +230,26 @@ async function fetchWikimediaImage(keyword, savePath) {
  * 5. Tries filtered Wikimedia Commons
  * 6. Falls back to curated photography with unique seed/lock
  */
-async function fetchTopicImage(entityKeyword, savePath, seed = 1) {
-    if (!entityKeyword) return null;
-    let cleanEntity = String(entityKeyword).trim().replace(/^["']|["']$/g, '').trim();
+async function fetchTopicImage(entityKeyword, savePath, seed = 1, fallbackKeyword = null) {
+    if (!entityKeyword && !fallbackKeyword) return null;
+    let cleanEntity = String(entityKeyword || fallbackKeyword || '').trim().replace(/^["']|["']$/g, '').trim();
+
+    // Determine clean search query in case direct URL fails
+    let topicQuery = "";
+    if (fallbackKeyword && !fallbackKeyword.startsWith('http')) {
+        topicQuery = String(fallbackKeyword).trim();
+    } else if (cleanEntity && !cleanEntity.startsWith('http')) {
+        topicQuery = cleanEntity;
+    } else {
+        // Try extracting readable keywords from the URL slug
+        try {
+            const urlObj = new URL(cleanEntity);
+            const slug = urlObj.pathname.split('/').filter(Boolean).pop() || '';
+            const cleanedSlug = slug.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').replace(/\d+/g, '').trim();
+            if (cleanedSlug.length > 3) topicQuery = cleanedSlug;
+        } catch (e) {}
+    }
+    if (!topicQuery) topicQuery = "India News";
 
     // 1. Direct web image URL (handles surrounding spaces, quotes, or markdown)
     const urlMatch = cleanEntity.match(/https?:\/\/[^\s"'>]+/i);
@@ -239,24 +257,59 @@ async function fetchTopicImage(entityKeyword, savePath, seed = 1) {
         const rawUrl = urlMatch[0];
         try {
             const fetchUrl = encodeURI(decodeURI(rawUrl));
-            console.log(`Fetching direct image URL: ${fetchUrl}`);
+            console.log(`Fetching direct image URL (6s limit): ${fetchUrl}`);
             const res = await fetch(fetchUrl, {
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'image/*,*/*'
-                }
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+                    'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                    'Referer': new URL(fetchUrl).origin + '/'
+                },
+                timeout: 6000
             });
+
             if (res.ok) {
-                const buffer = await res.buffer();
-                fs.writeFileSync(savePath, buffer);
-                console.log(`Saved direct URL image to ${savePath}`);
-                return savePath;
+                const ctype = (res.headers.get('content-type') || '').toLowerCase();
+                // If it's an image
+                if (ctype.startsWith('image/')) {
+                    const buffer = await res.buffer();
+                    if (buffer && buffer.length > 1000) {
+                        fs.writeFileSync(savePath, buffer);
+                        console.log(`Saved direct URL image (${buffer.length} bytes) to ${savePath}`);
+                        return savePath;
+                    }
+                } else if (ctype.includes('text/html')) {
+                    // It's a webpage! Try to extract og:image
+                    console.log(`URL returned HTML, searching for og:image meta tag...`);
+                    const html = await res.text();
+                    const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                                    html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+                    if (ogMatch && ogMatch[1]) {
+                        const ogUrl = ogMatch[1].startsWith('//') ? 'https:' + ogMatch[1] : ogMatch[1];
+                        console.log(`Found og:image: ${ogUrl}, downloading...`);
+                        const ogRes = await fetch(ogUrl, {
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                                'Accept': 'image/*,*/*'
+                            },
+                            timeout: 4000
+                        });
+                        if (ogRes.ok) {
+                            const ogBuf = await ogRes.buffer();
+                            if (ogBuf && ogBuf.length > 1000) {
+                                fs.writeFileSync(savePath, ogBuf);
+                                console.log(`Saved og:image to ${savePath}`);
+                                return savePath;
+                            }
+                        }
+                    }
+                }
             } else {
-                console.warn(`Direct image URL responded with status ${res.status}: ${rawUrl}`);
+                console.warn(`Direct image URL responded with HTTP ${res.status}: ${rawUrl}`);
             }
         } catch (err) {
-            console.warn(`Failed to download direct image URL '${rawUrl}':`, err.message);
+            console.warn(`Direct URL request error for '${rawUrl}': ${err.message}`);
         }
+        console.log(`Direct image URL unavailable. Falling back to authentic photo search for '${topicQuery}'...`);
     }
 
     // 2. Direct data URI (base64)
@@ -289,7 +342,7 @@ async function fetchTopicImage(entityKeyword, savePath, seed = 1) {
     }
 
     // 4. Wikipedia / Wikimedia keyword search
-    const cleaned = cleanEntity.replace(/^(the|a|an)\s+/i, '').trim();
+    const cleaned = topicQuery.replace(/^(the|a|an)\s+/i, '').trim();
 
     const wikiArticlePhoto = await fetchWikipediaArticlePhoto(cleaned, savePath);
     if (wikiArticlePhoto) return wikiArticlePhoto;
@@ -305,7 +358,8 @@ async function fetchTopicImage(entityKeyword, savePath, seed = 1) {
         const url = `https://loremflickr.com/1080/1080/${searchTag}?lock=${lockSeed}`;
         console.log(`Fallback: Fetching curated photo with tags '${searchTag}' (lock ${lockSeed})...`);
         const res = await fetch(url, {
-            headers: { 'User-Agent': '1affairs-media-pipeline/2.0' }
+            headers: { 'User-Agent': '1affairs-media-pipeline/2.0' },
+            timeout: 8000
         });
         const buffer = await res.buffer();
         fs.writeFileSync(savePath, buffer);

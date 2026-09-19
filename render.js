@@ -131,13 +131,16 @@ async function renderSlide(data, outputPath) {
 /**
 * Renders a full carousel (multiple slides) from an array of slide data.
 */
-async function renderCarousel(slidesData, outputDir) {
+async function renderCarousel(slidesData, outputDir, onProgress = null) {
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
   
   const paths = [];
   for (let i = 0; i < slidesData.length; i++) {
+    if (onProgress) {
+      onProgress(`[Rendering ${i + 1}/${slidesData.length}] Generating HD slide PNG...`);
+    }
     const outPath = path.join(outputDir, `slide-${i + 1}.png`);
     await renderSlide(slidesData[i], outPath);
     paths.push(outPath);

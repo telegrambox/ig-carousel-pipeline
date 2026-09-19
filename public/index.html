@@ -214,8 +214,35 @@
                                 Cancel
                             </button>
                             <button type="button" onclick="approveAndRender()" id="approveBtn" class="text-xs bg-green-600 hover:bg-green-700 font-bold text-white px-4 py-1.5 rounded-lg shadow-md transition flex items-center gap-1.5">
-                                <span>🚀 Approve & Render Images</span>
+                                <span id="approveBtnSpinner" class="hidden animate-spin">⏳</span>
+                                <span id="approveBtnText">🚀 Approve & Render Images</span>
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Rendering Progress Banner (Always visible during render) -->
+                    <div id="renderProgressBanner" class="hidden bg-gradient-to-r from-blue-950/80 via-indigo-950/80 to-purple-950/80 border border-blue-500/40 rounded-xl p-4 shadow-xl space-y-3 animate-pulse-slow">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <span class="relative flex h-3 w-3">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                                </span>
+                                <span id="renderProgressTitle" class="text-xs font-bold text-blue-300 uppercase tracking-wider">Rendering in Progress...</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span id="renderProgressTimer" class="text-[11px] font-mono text-gray-400">0s</span>
+                                <span id="renderProgressPercent" class="text-xs font-mono font-bold text-blue-400 bg-blue-950/80 border border-blue-800 px-2 py-0.5 rounded">0%</span>
+                            </div>
+                        </div>
+                        <!-- Progress Bar Track -->
+                        <div class="w-full bg-gray-800/90 rounded-full h-2.5 overflow-hidden border border-gray-700">
+                            <div id="renderProgressBar" class="bg-gradient-to-r from-blue-500 via-indigo-500 to-green-500 h-2.5 rounded-full transition-all duration-300" style="width: 5%"></div>
+                        </div>
+                        <!-- Current Action Subtext -->
+                        <div class="flex items-center justify-between text-[11px]">
+                            <span id="renderProgressStep" class="font-mono text-gray-200 truncate max-w-[85%]">Connecting to background rendering pipeline...</span>
+                            <span id="renderSlideCounter" class="font-mono text-indigo-300 font-semibold">Slide 0/0</span>
                         </div>
                     </div>
 
@@ -241,8 +268,9 @@
                     </div>
 
                     <div class="flex justify-end gap-3 pt-2">
-                        <button type="button" onclick="approveAndRender()" class="bg-green-600 hover:bg-green-700 text-white font-bold text-sm py-2 px-6 rounded-lg shadow transition flex items-center gap-2">
-                            <span>🚀 Approve & Render All Slides</span>
+                        <button type="button" id="approveBtnBottom" onclick="approveAndRender()" class="bg-green-600 hover:bg-green-700 text-white font-bold text-sm py-2 px-6 rounded-lg shadow transition flex items-center gap-2">
+                            <span id="approveBtnBottomSpinner" class="hidden animate-spin">⏳</span>
+                            <span id="approveBtnBottomText">🚀 Approve & Render All Slides</span>
                         </button>
                     </div>
                 </div>
@@ -867,6 +895,18 @@
                     }
                 }
 
+                // If user supplied a URL, derive a clean fallback keyword from the headline
+                let fallbackKeyword = "News";
+                const cleanHead = text.replace(/<[^>]+>/g, '').replace(/[:\-–|]/g, ' ').trim();
+                const headWords = cleanHead.split(/\s+/).filter(w => w.length > 2 && !/^(the|and|for|with|this|that|from|into|near|amid|across|several|about|after|before|nearly)$/i.test(w));
+                if (headWords.length > 0) {
+                    fallbackKeyword = headWords.slice(0, 3).join(' ');
+                }
+
+                if (imageUrl && (imageEntity.startsWith('http') || imageEntity === 'News')) {
+                    imageEntity = fallbackKeyword;
+                }
+
                 parsedSlides.push({
                     template: currentTemplate,
                     isCover: false,
@@ -875,7 +915,7 @@
                     subtext: subtext.trim(),
                     imageEntity: imageEntity.trim(),
                     imageUrl: imageUrl.trim(),
-                    keywordSuggestions: [imageEntity.trim(), "News"]
+                    keywordSuggestions: [fallbackKeyword, "News"]
                 });
             });
 
@@ -899,8 +939,15 @@
         // Step 2: Approve Blueprint & Render Carousel
         async function approveAndRender() {
             const approveBtn = document.getElementById('approveBtn');
-            approveBtn.disabled = true;
-            approveBtn.classList.add('opacity-50');
+            const approveBtnBottom = document.getElementById('approveBtnBottom');
+            if (approveBtn) {
+                approveBtn.disabled = true;
+                approveBtn.classList.add('opacity-50');
+            }
+            if (approveBtnBottom) {
+                approveBtnBottom.disabled = true;
+                approveBtnBottom.classList.add('opacity-50');
+            }
 
             // Collect any edits made in the blueprint fields
             if (currentCopyData && currentCopyData.slides) {
@@ -930,17 +977,20 @@
                         const uMatch = val.match(/https?:\/\/[^\s"'>]+/i);
                         if (uMatch) {
                             slide.imageUrl = uMatch[0];
-                            slide.imageEntity = uMatch[0];
+                            // Clean fallback keyword from headline
+                            const cleanHead = (slide.text || "").replace(/<[^>]+>/g, '').replace(/[:\-–|]/g, ' ').trim();
+                            const headWords = cleanHead.split(/\s+/).filter(w => w.length > 2 && !/^(the|and|for|with|this|that|from|into|near|amid|across|several|about|after|before|nearly)$/i.test(w));
+                            slide.imageEntity = headWords.slice(0, 3).join(' ') || "News";
                         } else {
-                            slide.imageEntity = val;
+                            slide.imageEntity = val || "News";
                             slide.imageUrl = "";
                         }
                     }
                 });
             }
 
-            log("Approved blueprint. Rendering carousel images with Puppeteer...", 'text-blue-400');
-            document.getElementById('logStatus').textContent = 'Rendering Carousel...';
+            log("Sending render command to background engine...", 'text-blue-400');
+            document.getElementById('logStatus').textContent = 'Starting Render...';
 
             try {
                 const res = await fetch('/api/render-copy', {
@@ -956,23 +1006,204 @@
                 });
 
                 const data = await res.json();
-                if (!data.success) throw new Error(data.error || 'Rendering failed');
+                if (!data.success || !data.jobId) {
+                    throw new Error(data.error || 'Failed to initialize rendering job');
+                }
 
-                log(`All ${data.slides.length} slides rendered successfully!`, 'text-green-400');
-                document.getElementById('logStatus').textContent = 'Finished';
-                
-                // Hide blueprint and display gallery
-                document.getElementById('blueprintArea').classList.add('hidden');
-                showResults(data);
+                // Connect to live tracker (SSE + Polling)
+                trackRenderJob(data.jobId, currentCopyData?.slides?.length || 5);
 
             } catch (err) {
-                log(`Render Error: ${err.message}`, 'text-red-400');
+                log(`Render Start Error: ${err.message}`, 'text-red-400');
                 document.getElementById('logStatus').textContent = 'Error';
-            } finally {
-                approveBtn.disabled = false;
-                approveBtn.classList.remove('opacity-50');
+                if (approveBtn) {
+                    approveBtn.disabled = false;
+                    approveBtn.classList.remove('opacity-50');
+                }
+                if (approveBtnBottom) {
+                    approveBtnBottom.disabled = false;
+                    approveBtnBottom.classList.remove('opacity-50');
+                }
             }
         }
+
+        // Live Render Job Tracker (SSE + Polling Fallback)
+        function trackRenderJob(jobId, totalSlides) {
+            const banner = document.getElementById('renderProgressBanner');
+            const pBar = document.getElementById('renderProgressBar');
+            const pPercent = document.getElementById('renderProgressPercent');
+            const pTitle = document.getElementById('renderProgressTitle');
+            const pStep = document.getElementById('renderProgressStep');
+            const pTimer = document.getElementById('renderProgressTimer');
+            const pCounter = document.getElementById('renderSlideCounter');
+
+            const approveBtn = document.getElementById('approveBtn');
+            const approveBtnBottom = document.getElementById('approveBtnBottom');
+            const spinner1 = document.getElementById('approveBtnSpinner');
+            const spinner2 = document.getElementById('approveBtnBottomSpinner');
+            const text1 = document.getElementById('approveBtnText');
+            const text2 = document.getElementById('approveBtnBottomText');
+
+            banner.classList.remove('hidden');
+            banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            if (spinner1) spinner1.classList.remove('hidden');
+            if (spinner2) spinner2.classList.remove('hidden');
+            if (text1) text1.textContent = 'Rendering...';
+            if (text2) text2.textContent = 'Rendering in Progress...';
+
+            pTitle.textContent = 'Rendering in Progress...';
+            pStep.textContent = 'Connecting to background rendering pipeline...';
+            pCounter.textContent = `0 / ${totalSlides} Slides`;
+            pBar.style.width = '8%';
+            pBar.className = 'bg-gradient-to-r from-blue-500 via-indigo-500 to-green-500 h-2.5 rounded-full transition-all duration-300';
+            pPercent.textContent = '8%';
+
+            const startTime = Date.now();
+            const timerInterval = setInterval(() => {
+                const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+                pTimer.textContent = `${elapsedSec}s`;
+            }, 1000);
+
+            let isFinished = false;
+            let currentDownloadSlide = 0;
+            let currentRenderSlide = 0;
+            const seenLogs = new Set();
+
+            function finish(success, resultOrErr) {
+                if (isFinished) return;
+                isFinished = true;
+                clearInterval(timerInterval);
+                if (evtSource) evtSource.close();
+                if (pollInterval) clearInterval(pollInterval);
+
+                if (success) {
+                    pBar.style.width = '100%';
+                    pPercent.textContent = '100%';
+                    pTitle.textContent = 'Render Completed!';
+                    pStep.textContent = 'All slides successfully generated!';
+                    log(`🎉 All ${resultOrErr.slides.length} slides rendered successfully in ${Math.floor((Date.now() - startTime) / 1000)}s!`, 'text-green-400');
+                    document.getElementById('logStatus').textContent = 'Finished';
+
+                    setTimeout(() => {
+                        banner.classList.add('hidden');
+                        document.getElementById('blueprintArea').classList.add('hidden');
+                        showResults(resultOrErr);
+                        resetButtons();
+                    }, 800);
+                } else {
+                    pTitle.textContent = 'Render Failed';
+                    pStep.textContent = resultOrErr || 'Unknown error occurred';
+                    pBar.className = 'bg-red-500 h-2.5 rounded-full transition-all duration-300';
+                    log(`Render Error: ${resultOrErr}`, 'text-red-400');
+                    document.getElementById('logStatus').textContent = 'Error';
+                    resetButtons();
+                }
+            }
+
+            function resetButtons() {
+                if (approveBtn) {
+                    approveBtn.disabled = false;
+                    approveBtn.classList.remove('opacity-50');
+                }
+                if (approveBtnBottom) {
+                    approveBtnBottom.disabled = false;
+                    approveBtnBottom.classList.remove('opacity-50');
+                }
+                if (spinner1) spinner1.classList.add('hidden');
+                if (spinner2) spinner2.classList.add('hidden');
+                if (text1) text1.textContent = '🚀 Approve & Render Images';
+                if (text2) text2.textContent = '🚀 Approve & Render All Slides';
+            }
+
+            function processLogMessage(msg) {
+                if (!msg || seenLogs.has(msg)) return;
+                seenLogs.add(msg);
+
+                pStep.textContent = msg;
+
+                // Color-code log line
+                let color = 'text-green-400';
+                if (/fetching|downloading|retrieving/i.test(msg)) color = 'text-blue-400';
+                else if (/fallback|403|404|timeout|retrying/i.test(msg)) color = 'text-yellow-400';
+                else if (/rendering|puppeteer|generating hd/i.test(msg)) color = 'text-purple-300';
+                else if (/failed|error/i.test(msg)) color = 'text-red-400';
+                else if (/ready|success|saved/i.test(msg)) color = 'text-green-400';
+
+                log(msg, color);
+
+                // Progress estimation from messages
+                const slideMatch = msg.match(/(?:Slide\s+|Rendering\s+)(\d+)\s*\/\s*(\d+)/i);
+                if (slideMatch) {
+                    const curr = parseInt(slideMatch[1]);
+                    const tot = parseInt(slideMatch[2]) || totalSlides;
+                    pCounter.textContent = `Slide ${curr} / ${tot}`;
+
+                    if (/rendering/i.test(msg)) {
+                        currentRenderSlide = Math.max(currentRenderSlide, curr);
+                        const pct = Math.min(95, 55 + Math.round((currentRenderSlide / tot) * 40));
+                        pBar.style.width = `${pct}%`;
+                        pPercent.textContent = `${pct}%`;
+                    } else {
+                        currentDownloadSlide = Math.max(currentDownloadSlide, curr);
+                        const pct = Math.min(55, 10 + Math.round((currentDownloadSlide / tot) * 45));
+                        pBar.style.width = `${pct}%`;
+                        pPercent.textContent = `${pct}%`;
+                    }
+                } else if (/rendering all.*puppeteer/i.test(msg)) {
+                    pBar.style.width = '55%';
+                    pPercent.textContent = '55%';
+                }
+            }
+
+            // 1. SSE Stream
+            let evtSource = null;
+            try {
+                evtSource = new EventSource(`/api/stream/${jobId}`);
+                evtSource.onmessage = (event) => {
+                    try {
+                        const payload = JSON.parse(event.data);
+                        if (payload.type === 'log') {
+                            processLogMessage(payload.message);
+                        } else if (payload.type === 'done') {
+                            finish(true, payload.data);
+                        } else if (payload.type === 'error') {
+                            finish(false, payload.message);
+                        }
+                    } catch (err) {}
+                };
+                evtSource.onerror = () => {
+                    // Fallback polling handles it seamlessly
+                };
+            } catch (e) {
+                console.warn("SSE connection error, relying on polling fallback", e);
+            }
+
+            // 2. High-reliability Polling Fallback (every 700ms)
+            const pollInterval = setInterval(async () => {
+                if (isFinished) return;
+                try {
+                    const res = await fetch(`/api/job/${jobId}`);
+                    if (!res.ok) return;
+                    const job = await res.json();
+                    if (!job.success) return;
+
+                    // Replay any new logs not received yet
+                    if (Array.isArray(job.logs)) {
+                        job.logs.forEach(msg => processLogMessage(msg));
+                    }
+
+                    if (job.status === 'completed' && job.result) {
+                        finish(true, job.result);
+                    } else if (job.status === 'error') {
+                        finish(false, job.error || 'Rendering job failed');
+                    }
+                } catch (e) {
+                    // ignore intermittent fetch errors
+                }
+            }, 700);
+        }
+
 
         // Display Gallery Results
         function showResults(data) {

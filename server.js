@@ -69,12 +69,20 @@ app.post('/api/plan-copy', async (req, res) => {
 });
 
 /**
- * Step 2: Render Carousel from Confirmed/Edited Copy
+ * Step 2: Render Carousel from Confirmed/Edited Copy (Asynchronous Background Job)
  */
-app.post('/api/render-copy', async (req, res) => {
+app.post('/api/render-copy', (req, res) => {
     const { copyData, channelName, bestStory, topicMode, template } = req.body;
     const jobId = Date.now().toString();
-    jobs.set(jobId, { status: 'running', logs: [] });
+    const job = {
+        id: jobId,
+        status: 'running',
+        logs: [],
+        result: null,
+        error: null,
+        createdAt: Date.now()
+    };
+    jobs.set(jobId, job);
     const onProgress = createLogger(jobId);
 
     if (copyData) {
@@ -82,30 +90,45 @@ app.post('/api/render-copy', async (req, res) => {
         if (channelName) copyData.channelName = channelName;
     }
 
-    try {
-        onProgress("Rendering carousel from approved copy data...");
-        const result = await renderFromCopyData(copyData, {
-            channelName,
-            bestStory,
-            topicMode,
-            template: copyData?.template || template || 'default',
-            onProgress
-        });
+    // Return jobId immediately so frontend can stream logs and track progress
+    res.json({
+        success: true,
+        jobId
+    });
 
-        jobs.get(jobId).status = 'completed';
-        res.json({
-            success: true,
-            jobId,
-            slides: result.slides,
-            caption: result.caption,
-            copyData: result.copyData
-        });
-    } catch (err) {
-        onProgress(`Rendering failed: ${err.message}`);
-        jobs.get(jobId).status = 'error';
-        res.status(500).json({ success: false, error: err.message });
-    }
+    // Execute rendering in background
+    (async () => {
+        try {
+            const slideCount = copyData?.slides?.length || 0;
+            const chosenTemplate = copyData?.template || template || 'default';
+            onProgress(`Starting render for ${slideCount} slides (Template: ${chosenTemplate})...`);
+
+            const result = await renderFromCopyData(copyData, {
+                channelName,
+                bestStory,
+                topicMode,
+                template: chosenTemplate,
+                onProgress
+            });
+
+            job.status = 'completed';
+            job.result = {
+                slides: result.slides,
+                caption: result.caption,
+                copyData: result.copyData
+            };
+            progressEvents.emit(`progress-${jobId}`, { type: 'done', data: job.result });
+            onProgress(`All ${result.slides.length} slides rendered successfully!`);
+        } catch (err) {
+            console.error(`[Job ${jobId}] Rendering failed:`, err);
+            job.status = 'error';
+            job.error = err.message;
+            progressEvents.emit(`progress-${jobId}`, { type: 'error', message: err.message });
+            onProgress(`Rendering failed: ${err.message}`);
+        }
+    })();
 });
+
 
 /**
  * Step 3: Regenerate or re-render a SINGLE slide on demand
@@ -237,7 +260,8 @@ app.post('/api/daily-news/rebuild-cover', async (req, res) => {
 app.post('/api/generate', (req, res) => {
     const { topicMode, customTopic, customContext, category, channelName, slideCount } = req.body;
     const jobId = Date.now().toString();
-    jobs.set(jobId, { status: 'running', logs: [] });
+    const job = { id: jobId, status: 'running', logs: [], result: null, error: null, createdAt: Date.now() };
+    jobs.set(jobId, job);
     res.json({ jobId });
 
     const onProgress = createLogger(jobId);
@@ -245,19 +269,44 @@ app.post('/api/generate', (req, res) => {
     run({ topicMode, customTopic, customContext, category, channelName, slideCount, onProgress })
         .then(result => {
             if (result.error) {
+                job.status = 'error';
+                job.error = result.error;
                 progressEvents.emit(`progress-${jobId}`, { type: 'error', message: result.error });
-                jobs.get(jobId).status = 'error';
             } else {
+                job.status = 'completed';
+                job.result = result;
                 progressEvents.emit(`progress-${jobId}`, { type: 'done', data: result });
-                jobs.get(jobId).status = 'completed';
             }
         })
         .catch(err => {
+            job.status = 'error';
+            job.error = err.message;
             progressEvents.emit(`progress-${jobId}`, { type: 'error', message: err.message });
-            jobs.get(jobId).status = 'error';
         });
 });
 
+/**
+ * Polling endpoint for job status, live logs, and final results
+ */
+app.get('/api/job/:id', (req, res) => {
+    const jobId = req.params.id;
+    const job = jobs.get(jobId);
+    if (!job) {
+        return res.status(404).json({ success: false, error: 'Job not found' });
+    }
+    res.json({
+        success: true,
+        jobId,
+        status: job.status,
+        logs: job.logs || [],
+        result: job.result || null,
+        error: job.error || null
+    });
+});
+
+/**
+ * Real-time SSE Stream Endpoint for Live Terminal & Tracker
+ */
 app.get('/api/stream/:id', (req, res) => {
     const jobId = req.params.id;
     res.setHeader('Content-Type', 'text/event-stream');
@@ -272,9 +321,17 @@ app.get('/api/stream/:id', (req, res) => {
 
     const job = jobs.get(jobId);
     if (job) {
+        // Replay existing logs
         job.logs.forEach(log => {
             res.write(`data: ${JSON.stringify({ type: 'log', message: log })}\n\n`);
         });
+
+        // If job already ended before SSE connected, inform client immediately
+        if (job.status === 'completed' && job.result) {
+            res.write(`data: ${JSON.stringify({ type: 'done', data: job.result })}\n\n`);
+        } else if (job.status === 'error') {
+            res.write(`data: ${JSON.stringify({ type: 'error', message: job.error || 'Job failed' })}\n\n`);
+        }
     }
 
     req.on('close', () => {
